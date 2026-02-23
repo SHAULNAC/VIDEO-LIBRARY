@@ -74,18 +74,24 @@ async function fetchVideos(query = "") {
 }
 
 async function executeSearch(finalQuery) {
-    // מנקים רווחים כפולים ומוודאים שהמחרוזת לא ריקה
-    const cleanQuery = finalQuery.trim();
+    // ניקוי תווים מיוחדים שעלולים לשבור את ה-FTS
+    const cleanQuery = finalQuery.replace(/[!@#$%^&*(),.?":{}|<>]/g, '').trim();
+    
     if (!cleanQuery) return;
-
-    console.log("מבצע חיפוש עבור:", cleanQuery); // לבדיקה בקונסול
 
     const { data, error } = await client.rpc('search_videos_prioritized', {
         search_term: cleanQuery
     });
 
     if (error) {
-        console.error("Search error:", error.message);
+        console.error("FTS Search Error:", error.message);
+        // Fallback פשוט במידה וה-FTS נכשל בגלל סינטקס
+        const { data: fallbackData } = await client
+            .from('videos')
+            .select('*')
+            .ilike('title', `%${cleanQuery}%`)
+            .limit(10);
+        if (fallbackData) renderVideoGrid(fallbackData);
         return;
     }
 
