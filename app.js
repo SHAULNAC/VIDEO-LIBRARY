@@ -83,31 +83,21 @@ async function fetchVideos(query = "") {
 }
 
 async function executeSearch(finalQuery) {
-    try {
-        // אנחנו מבצעים חיפוש שסורק את כל העמודות שביקשת
-        // העמודה fts_doc אמורה להכיל את האינדקס של כל השדות האלו ב-Supabase
-        const { data, error } = await client
-            .from('videos')
-            .select('*')
-            .or(`title.fts.${finalQuery},description.fts.${finalQuery},categories.fts.${finalQuery},tags.fts.${finalQuery}`)
-            .order('added_at', { ascending: false });
+    // שלב א': ניקוי השאילתה לפורמט ש-Postgres מבין
+    // אנחנו הופכים רווחים לתו | (OR) כדי שהחיפוש יהיה גמיש
+    const formattedQuery = finalQuery.trim().replace(/\s+/g, ' | ');
 
-        if (error) throw error;
-        renderVideoGrid(data);
-    } catch (error) {
-        console.error("Search execution error:", error);
-        
-        // במידה ויש בעיה בחיפוש ה-fts המשולב, נבצע חיפוש רחב עם ilike
-        // שיבדוק לפחות את הכותרת והתיאור
-        const cleanQuery = finalQuery.split('|')[0].trim();
-        const { data: fallbackData } = await client
-            .from('videos')
-            .select('*')
-            .or(`title.ilike.%${cleanQuery}%,description.ilike.%${cleanQuery}%`)
-            .limit(20);
-        
-        if (fallbackData) renderVideoGrid(fallbackData);
+    const { data, error } = await client.rpc('search_videos_prioritized', {
+        search_term: formattedQuery
+    });
+
+    if (error) {
+        console.error("קריאה ל-RPC נכשלה. וודא שהפונקציה קיימת ב-Supabase:", error.message);
+        return;
     }
+
+    // אם הכל תקין, מרנדרים את התוצאות
+    renderVideoGrid(data);
 }
 function renderVideoGrid(data) {
     const grid = document.getElementById('videoGrid');
