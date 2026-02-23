@@ -1,3 +1,4 @@
+// קונפיגורציה
 const SB_URL = 'https://fbzewdfubjfhqvlusyrj.supabase.co';
 const SB_KEY = 'sb_publishable_2JftgVsArBG2NB-RXp0q4Q_jdd8VfPO';
 const client = supabase.createClient(SB_URL, SB_KEY);
@@ -34,7 +35,7 @@ function updateUserUI() {
 async function getTranslation(text) {
     const cleanText = text.trim().toLowerCase();
     
-    // בדיקה ב-Cache לפי שמות העמודות שלך
+    // בדיקה ב-Cache לפי שמות העמודות בטבלה שלך
     const { data: cacheEntry } = await client
         .from('translation_cache')
         .select('translated_text')
@@ -43,7 +44,6 @@ async function getTranslation(text) {
 
     if (cacheEntry) return cacheEntry.translated_text;
 
-    // תרגום חיצוני
     try {
         const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=iw&tl=en&dt=t&q=${encodeURI(cleanText)}`);
         const data = await res.json();
@@ -56,62 +56,66 @@ async function getTranslation(text) {
             }]);
             return translated;
         }
-    } catch (e) { console.error("Translation error:", e); }
+    } catch (e) { 
+        console.error("Translation error:", e); 
+    }
     return null;
 }
 
 async function fetchVideos(query = "") {
     const searchQuery = query.trim();
     
+    // אם החיפוש ריק - הצג את כל הסרטונים
     if (!searchQuery) {
         const { data } = await client.from('videos').select('*').order('added_at', { ascending: false });
         renderVideoGrid(data);
         return;
     }
 
-    // חיפוש מהיר בעברית
+    // חיפוש מהיר מיידי (עברית)
     executeSearch(searchQuery);
 
-    // המתנה לתרגום וחיפוש משולב
+    // המתנה לתרגום וביצוע חיפוש משולב (עברית + אנגלית)
     clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(async () => {
         const translated = await getTranslation(searchQuery);
         if (translated) {
-            executeSearch(`${searchQuery} | ${translated}`);
+            executeSearch(`${searchQuery} ${translated}`);
         }
     }, 800);
 }
 
+// פונקציית החיפוש המרכזית - משתמשת ב-RPC ב-SQL
 async function executeSearch(finalQuery) {
-    // שלב א': ניקוי השאילתה לפורמט ש-Postgres מבין
-    // אנחנו הופכים רווחים לתו | (OR) כדי שהחיפוש יהיה גמיש
-    const formattedQuery = finalQuery.trim().replace(/\s+/g, ' | ');
+    // הפיכת רווחים לתו | עבור ה-Full Text Search ב-Postgres
+    const formattedQuery = finalQuery.trim().split(/\s+/).join(' | ');
 
     const { data, error } = await client.rpc('search_videos_prioritized', {
         search_term: formattedQuery
     });
 
     if (error) {
-        console.error("קריאה ל-RPC נכשלה. וודא שהפונקציה קיימת ב-Supabase:", error.message);
+        console.error("Search error (RPC):", error.message);
         return;
     }
 
-    // אם הכל תקין, מרנדרים את התוצאות
     renderVideoGrid(data);
 }
+
+// --- רינדור (הצגת הנתונים ב-HTML) ---
 function renderVideoGrid(data) {
     const grid = document.getElementById('videoGrid');
     if (!grid) return;
     
     if (!data || data.length === 0) {
-        grid.innerHTML = '<p style="padding:20px; text-align:center;">לא נמצאו סרטונים...</p>';
+        grid.innerHTML = '<p style="padding:20px; text-align:center; color: #b3b3b3;">לא נמצאו סרטונים תואמים...</p>';
         return;
     }
 
     grid.innerHTML = data.map(v => `
-        <div class="v-card" onclick="playVideo('${v.id}', '${v.title}', '${v.channel_title}')">
+        <div class="v-card" onclick="playVideo('${v.id}', '${v.title.replace(/'/g, "\\'")}', '${v.channel_title.replace(/'/g, "\\'")}')">
             <div class="card-img-container">
-                <img src="${v.thumbnail}">
+                <img src="${v.thumbnail}" alt="${v.title}">
                 <button class="play-overlay-btn"><i class="fa-solid fa-play"></i></button>
             </div>
             <h3>${v.title}</h3>
@@ -125,9 +129,12 @@ function renderVideoGrid(data) {
 
 // --- נגן והיסטוריה ---
 async function playVideo(id, title, channel) {
-    document.getElementById('youtubePlayer').src = `https://www.youtube.com/embed/${id}?autoplay=1`;
-    document.getElementById('current-title').innerText = title;
-    document.getElementById('current-channel').innerText = channel;
+    const player = document.getElementById('youtubePlayer');
+    if (player) {
+        player.src = `https://www.youtube.com/embed/${id}?autoplay=1`;
+        document.getElementById('current-title').innerText = title;
+        document.getElementById('current-channel').innerText = channel;
+    }
 
     if (currentUser) {
         await client.from('history').insert({ user_id: currentUser.id, video_id: id });
@@ -135,7 +142,7 @@ async function playVideo(id, title, channel) {
     }
 }
 
-// --- פונקציות צד ---
+// --- פונקציות צד (היסטוריה) ---
 async function loadSidebarLists() {
     if (!currentUser) return;
     const { data: history } = await client
@@ -147,21 +154,31 @@ async function loadSidebarLists() {
 
     const sidebarList = document.getElementById('favorites-list');
     if (history && sidebarList) {
-        sidebarList.innerHTML = '<p style="font-size:12px; color:#b3b3b3; margin-bottom:10px;">צפיות אחרונות</p>' + 
-        history.map(h => `
-            <div class="nav-link" style="font-size:13px; padding:5px 0;" onclick="playVideo('${h.videos.id}', '${h.videos.title}', '')">
-                <i class="fa-solid fa-clock-rotate-left" style="font-size:12px;"></i> ${h.videos.title}
+        sidebarList.innerHTML = '<p style="font-size:12px; color:#b3b3b3; margin-bottom:10px; padding-right:10px;">צפיות אחרונות</p>' + 
+        history.map(h => h.videos ? `
+            <div class="nav-link" style="font-size:13px; padding:5px 10px; cursor:pointer;" onclick="playVideo('${h.videos.id}', '${h.videos.title.replace(/'/g, "\\'")}', '')">
+                <i class="fa-solid fa-clock-rotate-left" style="font-size:12px; margin-left:5px;"></i> ${h.videos.title}
             </div>
-        `).join('');
+        ` : '').join('');
     }
 }
 
-async function login() { await client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } }); }
-async function logout() { await client.auth.signOut(); window.location.reload(); }
+async function login() { 
+    await client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } }); 
+}
 
-// מאזין אירועים - כאן היה חסר ה-")" שגרם לשגיאה
-document.getElementById('globalSearch').addEventListener('input', (e) => {
-    fetchVideos(e.target.value);
-});
+async function logout() { 
+    await client.auth.signOut(); 
+    window.location.reload(); 
+}
 
-init();
+// מאזין לאירוע חיפוש
+const searchInput = document.getElementById('globalSearch');
+if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+        fetchVideos(e.target.value);
+    });
+}
+
+// הפעלת האתר
+document.addEventListener('DOMContentLoaded', init);
