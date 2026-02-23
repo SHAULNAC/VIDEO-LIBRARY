@@ -110,13 +110,31 @@ async function translateText(text) {
 document.getElementById('globalSearch').addEventListener('input', (e) => {
     fetchVideos(e.target.value);
 });// --- כאן תדביק את פונקציית renderGrid המקורית שלך בדיוק כפי שהייתה ---
-function renderGrid(videos) {
-    const container = document.getElementById('videoGrid');
-    if (!container) return;
+// פונקציית הרינדור - אחראית על התצוגה בלבד
+function renderVideoGrid(data) {
+    const grid = document.getElementById('videoGrid');
+    
+    // אם אין תוצאות, נכתוב הודעה למשתמש
+    if (!data || data.length === 0) {
+        grid.innerHTML = '<p style="padding:20px; text-align:center;">לא מצאנו סרטונים שתואמים לחיפוש שלך...</p>';
+        return;
+    }
 
-    // *** תדביק כאן את ה-innerHTML המקורי שלך ***
-    // דוגמה למבנה (תחליף במה שיש לך):
-    // container.innerHTML = videos.map(video => ` ... `).join('');
+    // הפיכת הנתונים ל-HTML והזרקתם לדף
+    grid.innerHTML = data.map(v => `
+        <div class="v-card" onclick="playVideo('${v.id}', '${v.title}', '${v.channel_title}')">
+            <div class="card-img-container">
+                <img src="${v.thumbnail}">
+                <button class="play-overlay-btn"><i class="fa-solid fa-play"></i></button>
+            </div>
+            <h3>${v.title}</h3>
+            <div class="card-footer">
+                <span>${v.channel_title}</span>
+                <i class="fa-regular fa-heart" onclick="event.stopPropagation(); toggleFavorite('${v.id}')" id="fav-icon-${v.id}"></i>
+            </div>
+        </div>
+    `).join('');
+}
 }
 
 document.addEventListener('DOMContentLoaded', () => fetchVideos(""));
