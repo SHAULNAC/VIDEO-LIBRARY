@@ -85,23 +85,23 @@ async function fetchVideos(query = "") {
     }, 800);
 }
 
-// פונקציית החיפוש המרכזית - משתמשת ב-RPC ב-SQL
 async function executeSearch(finalQuery) {
-    // הפיכת רווחים לתו | עבור ה-Full Text Search ב-Postgres
-    const formattedQuery = finalQuery.trim().split(/\s+/).join(' | ');
+    // אנחנו שולחים את הטקסט נקי, ה-SQL כבר יטפל בחיפוש החכם
+    const cleanQuery = finalQuery.trim();
+
+    if (!cleanQuery) return;
 
     const { data, error } = await client.rpc('search_videos_prioritized', {
-        search_term: formattedQuery
+        search_term: cleanQuery
     });
 
     if (error) {
-        console.error("Search error (RPC):", error.message);
+        console.error("שגיאת RPC:", error.message);
         return;
     }
 
     renderVideoGrid(data);
 }
-
 // --- רינדור (הצגת הנתונים ב-HTML) ---
 function renderVideoGrid(data) {
     const grid = document.getElementById('videoGrid');
