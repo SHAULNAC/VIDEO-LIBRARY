@@ -61,15 +61,21 @@ async function fetchVideos(query = "") {
 }
 
 async function executeSearch(finalQuery) {
-    // שליחה נקייה ל-RPC ללא תווים מיוחדים שגורמים ל-400 Bad Request
+    // מנקים רווחים כפולים ומוודאים שהמחרוזת לא ריקה
+    const cleanQuery = finalQuery.trim();
+    if (!cleanQuery) return;
+
+    console.log("מבצע חיפוש עבור:", cleanQuery); // לבדיקה בקונסול
+
     const { data, error } = await client.rpc('search_videos_prioritized', {
-        search_term: finalQuery.trim()
+        search_term: cleanQuery
     });
 
     if (error) {
         console.error("Search error:", error.message);
         return;
     }
+
     renderVideoGrid(data);
 }
 
