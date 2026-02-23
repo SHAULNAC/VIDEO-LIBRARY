@@ -51,12 +51,25 @@ async function fetchVideos(query = "") {
         return;
     }
 
-    executeSearch(searchQuery);
+    // שלב 1: חפש קודם כל את מה שהמשתמש הקליד (עברית/מקור)
+    await executeSearch(searchQuery);
 
+    // שלב 2: תרגם וחפש גם את האנגלית, אבל אל תשרשר אותם למחרוזת אחת
     clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(async () => {
         const translated = await getTranslation(searchQuery);
-        if (translated) executeSearch(`${searchQuery} ${translated}`);
+        if (translated && translated.toLowerCase() !== searchQuery.toLowerCase()) {
+            console.log("מבצע חיפוש נוסף עבור התרגום:", translated);
+            
+            const { data: translatedData } = await client.rpc('search_videos_prioritized', {
+                search_term: translated
+            });
+
+            if (translatedData && translatedData.length > 0) {
+                // הוספת התוצאות מהתרגום לתוצאות הקיימות (מניעת כפילויות)
+                renderVideoGrid(translatedData, true); 
+            }
+        }
     }, 800);
 }
 
