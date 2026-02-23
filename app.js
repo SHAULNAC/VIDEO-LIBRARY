@@ -110,21 +110,21 @@ function renderVideoGrid(data) {
     }
 
     grid.innerHTML = data.map(v => {
-        // מניעת קריסה: מוודאים שכל שדה הוא מחרוזת לפני ביצוע replace
+        // הגנות מפני ערכים ריקים (null)
         const title = v.title || "";
         const channel = v.channel_title || "";
         const description = v.description || "אין תיאור זמין";
         const videoId = v.id || "";
 
+        // ניקוי תווים שעלולים לשבור את הקוד
         const safeTitle = title.replace(/'/g, "\\'");
         const safeChannel = channel.replace(/'/g, "\\'");
-        const safeDesc = description.replace(/'/g, "\\'");
         
         return `
             <div class="v-card" onclick="playVideo('${videoId}', '${safeTitle}', '${safeChannel}')">
                 <div class="card-img-container">
                     <img src="${v.thumbnail || ''}" loading="lazy">
-                    <div class="video-description-overlay">${safeDesc}</div>
+                    <div class="video-description-overlay">${description}</div>
                     <button class="play-overlay-btn"><i class="fa-solid fa-play"></i></button>
                 </div>
                 <h3>${title}</h3>
@@ -137,6 +137,27 @@ function renderVideoGrid(data) {
             </div>
         `;
     }).join('');
+}
+
+// פונקציית המועדפים (תוודא שהיא קיימת בקובץ למטה)
+async function toggleFavorite(videoId) {
+    if (!currentUser) {
+        alert("עליך להתחבר כדי להוסיף למועדפים");
+        return;
+    }
+    const icon = document.getElementById(`fav-icon-${videoId}`);
+    try {
+        const { data: existing } = await client.from('favorites').select('*').eq('user_id', currentUser.id).eq('video_id', videoId).maybeSingle();
+        if (existing) {
+            await client.from('favorites').delete().eq('id', existing.id);
+            icon.classList.replace('fa-solid', 'fa-regular');
+            icon.style.color = 'inherit';
+        } else {
+            await client.from('favorites').insert([{ user_id: currentUser.id, video_id: videoId }]);
+            icon.classList.replace('fa-regular', 'fa-solid');
+            icon.style.color = '#1DB954';
+        }
+    } catch (e) { console.error(e); }
 }
 async function playVideo(id, title, channel) {
     const player = document.getElementById('youtubePlayer');
