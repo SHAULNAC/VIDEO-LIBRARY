@@ -231,3 +231,16 @@ body {
 .settings-card .nav-link i {
     font-size: 14px;
 }
+.player-loader {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--spotify-green);
+    font-size: 40px;
+    animation: pulse 1s infinite alternate;
+}
+
+@keyframes pulse {
+    from { opacity: 0.2; transform: translate(-50%, -50%) scale(0.9); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+}
