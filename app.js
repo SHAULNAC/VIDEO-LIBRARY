@@ -140,25 +140,34 @@ function preparePlay(encodedData) {
 }
 // --- נגן וגרירה ---
 
+function preparePlay(encodedData) {
+    try {
+        const decoded = JSON.parse(decodeURIComponent(escape(atob(encodedData))));
+        playVideo(decoded.id, decoded.title, decoded.channel);
+    } catch (e) {
+        console.error("Error decoding video data", e);
+    }
+}
+
 function playVideo(id, title, channel) {
     const playerWin = document.getElementById('floating-player');
     const container = document.getElementById('youtubePlayer');
     
     playerWin.style.display = 'flex'; 
+    
+    // הוספת הרשאות מפורשות ב-allow ופרמטרים לביצועים
     container.innerHTML = `
         <iframe id="yt-iframe" 
-                src="https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1&rel=0" 
-                frameborder="0" allow="autoplay; encrypted-media" allowfullscreen>
+                src="https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1&rel=0&showinfo=0&iv_load_policy=3" 
+                frameborder="0" 
+                allow="autoplay; encrypted-media; picture-in-picture" 
+                allowfullscreen>
         </iframe>`;
     
     document.getElementById('current-title').innerText = title;
     document.getElementById('current-channel').innerText = channel;
     isPlaying = true;
     updatePlayStatus(true);
-
-    if (currentUser) {
-        client.from('history').upsert({ user_id: currentUser.id, video_id: id, created_at: new Date() });
-    }
 }
 
 function initDraggable() {
