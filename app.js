@@ -140,34 +140,48 @@ function preparePlay(encodedData) {
 }
 // --- נגן וגרירה ---
 
-function preparePlay(encodedData) {
-    try {
-        const decoded = JSON.parse(decodeURIComponent(escape(atob(encodedData))));
-        playVideo(decoded.id, decoded.title, decoded.channel);
-    } catch (e) {
-        console.error("Error decoding video data", e);
-    }
-}
+
 
 function playVideo(id, title, channel) {
     const playerWin = document.getElementById('floating-player');
     const container = document.getElementById('youtubePlayer');
     
+    if (!playerWin || !container) return;
+
     playerWin.style.display = 'flex'; 
     
-    // הוספת הרשאות מפורשות ב-allow ופרמטרים לביצועים
+    // בניית URL עם פרמטרים שחוסכים טעינת רכיבים שנטפרי מסננת
+    const params = new URLSearchParams({
+        autoplay: 1,
+        enablejsapi: 1,
+        rel: 0,
+        iv_load_policy: 3,   // קריטי: מבטל הערות/כתוביות שנטפרי סורקת ומתעכבת עליהן
+        showinfo: 0,
+        controls: 1,
+        origin: window.location.origin // עוזר במניעת חלק משגיאות ה-CORS
+    });
+
     container.innerHTML = `
         <iframe id="yt-iframe" 
-                src="https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1&rel=0&showinfo=0&iv_load_policy=3" 
+                src="https://www.youtube.com/embed/${id}?${params.toString()}" 
                 frameborder="0" 
                 allow="autoplay; encrypted-media; picture-in-picture" 
                 allowfullscreen>
         </iframe>`;
     
+    // עדכון ממשק המשתמש
     document.getElementById('current-title').innerText = title;
     document.getElementById('current-channel').innerText = channel;
+    
+    // עדכון היסטוריה ב-Supabase (אם המשתמש מחובר)
+    if (currentUser) {
+        client.from('history').upsert([
+            { user_id: currentUser.id, video_id: id, created_at: new Date() }
+        ]).then(() => loadSidebarLists());
+    }
+
     isPlaying = true;
-    updatePlayStatus(true);
+    if (typeof updatePlayStatus === 'function') updatePlayStatus(true);
 }
 
 function initDraggable() {
