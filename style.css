@@ -72,7 +72,18 @@ body {
     width: 15px; height: 15px; position: absolute; right: 0; bottom: 0;
     cursor: nwse-resize; z-index: 10;
 }
+/* מבטיח שהסרטון ימלא את כל שטח הנגן */
+#yt-iframe {
+    width: 100%;
+    height: 100%;
+    border-radius: 0 0 12px 12px; /* עיגול פינות תחתונות בהתאם לחלון */
+}
 
+/* מוודא שמיכל הנגן עצמו גמיש */
+#youtubePlayer {
+    width: 100%;
+    height: calc(100% - 30px); /* מפחית את גובה כותרת הגרירה */
+}
 /* Player Bar */
 .player-bar {
     grid-column: span 2; background: black; border-top: 1px solid #282828;
