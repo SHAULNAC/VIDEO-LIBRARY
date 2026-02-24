@@ -22,7 +22,7 @@ function escapeHtml(text) {
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
+        .replace(/'/g, "&#39;"); // מחליף גרש לקוד HTML בטוח
 }
 
 // --- ניהול משתמש ואתחול ---
@@ -100,15 +100,15 @@ function renderVideoGrid(data, append = false) {
     const html = data.map(v => {
         const isFav = userFavorites.includes(v.id);
         
-        // 1. הכנת הטקסט לתצוגה ב-HTML (מונע הזרקת קוד)
+        // הכנת הטקסט להצגה ב-HTML
         const displayTitle = escapeHtml(v.title);
         const displayChannel = escapeHtml(v.channel_title);
         const displayDesc = escapeHtml(v.description);
 
-        // 2. הכנת הטקסט למעבר בתוך פונקציית JS (מטפל בגרשים שגורמים לשגיאת Syntax)
-        // אנחנו משתמשים ב-JSON.stringify כדי שהדפדפן יטפל בבריחה של תווים באופן אוטומטי
-        const jsTitle = v.title.replace(/'/g, "\\'");
-        const jsChannel = v.channel_title.replace(/'/g, "\\'");
+        // הכנת הטקסט למשלוח בתוך פונקציית onclick
+        // אנחנו מחליפים כל גרש בגרש עם שני סלאשים לפניו כדי שה-JS יבין שזה תו טקסטואלי
+        const jsTitle = v.title.replace(/'/g, "\\\\'");
+        const jsChannel = v.channel_title.replace(/'/g, "\\\\'");
 
         return `
             <div class="v-card" onclick="playVideo('${v.id}', '${jsTitle}', '${jsChannel}')">
