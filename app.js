@@ -105,15 +105,16 @@ function renderVideoGrid(data, append = false) {
         const isFav = userFavorites.includes(v.id);
         const categoryName = categoryMap[v.category_id] || "כללי";
         
-        // יצירת אובייקט בטוח להעברה
-        const videoData = JSON.stringify({
+        // יצירת אובייקט נתונים ואריזתו ב-Base64 כדי למנוע שגיאות Syntax
+        const videoObj = {
             id: v.id,
-            title: cleanForJS(v.title),
-            channel: cleanForJS(v.channel_title)
-        }).replace(/"/g, '&quot;');
+            title: v.title,
+            channel: v.channel_title
+        };
+        const safeData = btoa(encodeURIComponent(JSON.stringify(videoObj)));
 
         return `
-            <div class="v-card" onclick='preparePlay(${videoData})'>
+            <div class="v-card" onclick="preparePlay('${safeData}')">
                 <div class="card-img-container">
                     <img src="${v.thumbnail}" loading="lazy">
                     <div class="video-description-overlay">${escapeHtml(v.description)}</div>
@@ -130,10 +131,14 @@ function renderVideoGrid(data, append = false) {
     grid.innerHTML = append ? grid.innerHTML + html : html;
 }
 
-function preparePlay(video) {
-    playVideo(video.id, video.title, video.channel);
+function preparePlay(encodedData) {
+    try {
+        const decodedData = JSON.parse(decodeURIComponent(atob(encodedData)));
+        playVideo(decodedData.id, decodedData.title, decodedData.channel);
+    } catch (e) {
+        console.error("שגיאה בפענוח נתוני סרטון:", e);
+    }
 }
-
 // --- נגן וגרירה ---
 
 function playVideo(id, title, channel) {
