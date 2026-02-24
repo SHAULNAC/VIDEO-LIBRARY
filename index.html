@@ -38,16 +38,41 @@
         </section>
     </main>
 
-   <div id="floating-player" class="floating-window">
+  <div id="floating-player" class="floating-window">
     <div class="window-header" id="drag-handle">
-        <span class="drag-dots">⋮⋮⋮</span>
+        <span class="drag-dots">⋮⋮⋮ גרירה</span>
         <button class="close-player-btn" onclick="closePlayer()">
             <i class="fa-solid fa-xmark"></i>
         </button>
     </div>
     <div id="youtubePlayer"></div>
-</div>>
+    <div class="resizer" id="resizer"></div>
+</div>
 
+<footer class="player-bar hidden-player" id="main-player-bar">
+    <div class="now-playing">
+        <div id="track-info">
+            <p id="current-title" style="font-weight: bold; margin: 0; font-size: 14px;"></p>
+            <div class="video-meta-sub">
+                <span id="current-channel"></span> • 
+                <span id="current-category"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="player-center">
+        <div id="bottom-description" class="bottom-desc-elegant"></div>
+    </div>
+
+    <div class="player-right">
+        <div id="bottom-stats" class="video-stats-spotify">
+            <span id="stat-views"></span>
+            <span id="stat-likes"></span>
+        </div>
+        <span id="video-duration">00:00</span>
+    </div>
+</footer>
+  
     <footer class="player-bar">
     <div class="now-playing">
         <div id="track-info">
