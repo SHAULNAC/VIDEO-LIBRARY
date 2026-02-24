@@ -241,3 +241,10 @@ body {
 /* --- Helpers --- */
 .hidden-player { display: none !important; }
 .show-player { display: flex !important; }
+
+.assistant-<uniquifier> {
+  font-family: "Assistant", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: <weight>;
+  font-style: normal;
+}
