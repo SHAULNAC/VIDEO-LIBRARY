@@ -102,3 +102,50 @@ body {
 /* Player Bar */
 .player-bar { grid-column: span 2; background: black; border-top: 1px solid #282828; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; }
 .iframe-wrapper { width: 400px; height: 70px; border-radius: 8px; overflow: hidden; }
+.floating-window {
+    position: fixed;
+    bottom: 100px;
+    left: 20px;
+    width: 320px;
+    background: var(--dark-grey);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    z-index: 1000;
+    display: none; /* יופיע רק כשמפעילים סרטון */
+}
+
+.window-header {
+    height: 30px;
+    background: #282828;
+    cursor: move;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: var(--text-dim);
+}
+
+.video-container {
+    position: relative;
+    padding-bottom: 56.25%; /* יחס 16:9 */
+    height: 0;
+}
+
+.video-container iframe {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    border: none;
+}
+
+.resizer {
+    width: 15px; height: 15px;
+    background: transparent;
+    position: absolute;
+    right: 0; top: 0;
+    cursor: nwse-resize;
+}
+
+.player-bar button {
+    background: white; border: none; border-radius: 50%;
+    width: 35px; height: 35px; cursor: pointer;
+}
