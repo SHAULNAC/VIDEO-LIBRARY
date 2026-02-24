@@ -75,7 +75,8 @@ async function login() {
     const { error } = await client.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            redirectTo: window.location.origin
+            // זה מבטיח שגם אם אתה בתיקייה פנימית, הוא יחזור אליה
+            redirectTo: window.location.origin + window.location.pathname 
         }
     });
     if (error) console.error("Login error:", error.message);
