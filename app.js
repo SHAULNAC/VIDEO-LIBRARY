@@ -13,9 +13,14 @@ function cleanFtsQuery(query) {
 }
 
 // פונקציה לטיפול בגרשים בטקסט שמוזרק ל-HTML
-function safeStr(str) {
-    if (!str) return "";
-    return str.replace(/'/g, "\\'");
+function escapeHtml(text) {
+    if (!text) return "";
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;"); // מחליף גרש בקוד HTML כדי שלא ישבור את ה-JS
 }
 
 async function init() {
