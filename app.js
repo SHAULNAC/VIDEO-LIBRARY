@@ -193,11 +193,19 @@ function preparePlay(encodedData) {
 
 function playVideo(data) {
     const playerWin = document.getElementById('floating-player');
+    const playerBar = document.getElementById('main-player-bar'); // הסרגל התחתון
     const container = document.getElementById('youtubePlayer');
     
     if (!playerWin || !container) return;
 
+    // 1. הצגת חלון הוידאו (ה-CSS שנתתי מקודם ידאג למרכוז)
     playerWin.style.display = 'flex'; 
+
+    // 2. הפעלת ההנפשה של הסרגל התחתון (עולה מלמטה)
+    if (playerBar) {
+        playerBar.classList.remove('hidden-player');
+        playerBar.classList.add('show-player');
+    }
 
     const videoParams = new URLSearchParams({
         autoplay: 1,
@@ -219,14 +227,13 @@ function playVideo(data) {
                 allowfullscreen>
         </iframe>`;
     
-    // עדכון טקסטים בבר התחתון
+    // --- עדכון נתונים בסרגל ---
     document.getElementById('current-title').textContent = data.t || "";
     document.getElementById('current-channel').textContent = data.c || "";
     
     const catElem = document.getElementById('current-category');
     if (catElem) catElem.textContent = data.cat || "כללי";
     
-    // שימוש בפונקציית המרת הזמן החדשה
     const durationElem = document.getElementById('video-duration');
     if (durationElem) durationElem.textContent = formatDuration(data.d);
     
@@ -236,12 +243,10 @@ function playVideo(data) {
     if (document.getElementById('stat-likes')) 
         document.getElementById('stat-likes').innerHTML = `<i class="fa-solid fa-thumbs-up"></i> ${data.l}`;
     
-    if (document.getElementById('stat-rating')) 
-        document.getElementById('stat-rating').innerHTML = `<i class="fa-solid fa-star" style="color: gold;"></i> ${data.r}`;
-    
+    // הצגת התיאור המלא בצורה אלגנטית (בלי קיצור ל-100 תווים)
     const descElem = document.getElementById('bottom-description');
     if (descElem && data.desc) {
-        descElem.textContent = data.desc.substring(0, 100) + "...";
+        descElem.textContent = data.desc; // נותנים ל-CSS (line-clamp) לטפל בחיתוך היפה
     }
 
     // הקפצת שאלת שימושיות אחרי 30 שניות
@@ -261,7 +266,7 @@ function playVideo(data) {
     }
 
     isPlaying = true;
-    updatePlayStatus(true);
+    if (typeof updatePlayStatus === 'function') updatePlayStatus(true);
 }
 function closePlayer() {
     const playerWin = document.getElementById('floating-player');
