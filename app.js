@@ -42,23 +42,6 @@ function formatDuration(isoDuration) {
     return parts.join(':');
 }
 
-function showPrivacy() {
-    const modal = document.getElementById('privacy-modal');
-    if (modal) modal.style.display = 'flex';
-}
-
-function closePrivacy() {
-    const modal = document.getElementById('privacy-modal');
-    if (modal) modal.style.display = 'none';
-}
-
-// סגירה בלחיצה מחוץ למודאל
-window.onclick = function(event) {
-    const modal = document.getElementById('privacy-modal');
-    if (event.target == modal) {
-        closePrivacy();
-    }
-}// --- אתחול ---
 
 async function init() {
     try {
@@ -414,6 +397,23 @@ async function displayFavorites() {
     if (title) title.textContent = "מועדפים";
     if (data) renderVideoGrid(data.map(i => i.videos).filter(v => v));
 }
+function showPrivacy() {
+    const modal = document.getElementById('privacy-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closePrivacy() {
+    const modal = document.getElementById('privacy-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+// סגירה בלחיצה מחוץ למודאל
+window.onclick = function(event) {
+    const modal = document.getElementById('privacy-modal');
+    if (event.target == modal) {
+        closePrivacy();
+    }
+}// --- אתחול ---
 
 // מאזינים לאירועים
 document.getElementById('globalSearch').addEventListener('input', (e) => fetchVideos(e.target.value));
