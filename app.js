@@ -70,7 +70,40 @@ function updateUserUI() {
             </div>`;
     }
 }
+// פונקציית התחברות עם גוגל
+async function login() {
+    const { error } = await client.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+            redirectTo: window.location.origin
+        }
+    });
+    if (error) console.error("Login error:", error.message);
+}
 
+// עדכון פונקציית ה-init כדי להאזין לשינויי התחברות
+async function init() {
+    // בדיקת משתמש נוכחי
+    const { data: { user } } = await client.auth.getUser();
+    currentUser = user;
+    
+    // האזנה לשינויים (כניסה/יציאה)
+    client.auth.onAuthStateChange((event, session) => {
+        currentUser = session?.user || null;
+        updateUserUI();
+        if (currentUser) loadSidebarLists();
+    });
+
+    updateUserUI();
+    
+    if (user) {
+        const { data: favs } = await client.from('favorites').select('video_id').eq('user_id', user.id);
+        userFavorites = favs ? favs.map(f => f.video_id) : [];
+        loadSidebarLists();
+    }
+    fetchVideos();
+    initDraggable();
+}
 async function logout() { await client.auth.signOut(); window.location.reload(); }
 
 // --- חיפוש ---
