@@ -7,12 +7,34 @@ let userFavorites = [];
 let debounceTimeout = null;
 let isPlaying = false;
 
-// 1. פונקציית עזר לניקוי תווים מיוחדים (FTS)
-function cleanFtsQuery(query) {
-    return query.replace(/[^\w\sא-ת]/g, ' ').trim();
+// מיפוי קטגוריות יוטיוב
+const categoryMap = {
+    "1": "סרטים ואנימציה",
+    "2": "רכבים",
+    "10": "מוזיקה",
+    "15": "חיות מחמד",
+    "17": "ספורט",
+    "20": "גיימינג",
+    "22": "אנשים ובלוגים",
+    "23": "קומדיה",
+    "24": "בידור",
+    "25": "חדשות ופוליטיקה",
+    "26": "מדריכים וסטייל",
+    "27": "חינוך",
+    "28": "מדע וטכנולוגיה"
+};
+
+// פונקציית ניקוי חזקה - מטפלת בגרשים, ירידות שורה ותווים שוברים
+function cleanForJS(text) {
+    if (!text) return "";
+    return text
+        .replace(/\\/g, '\\\\') // סלאש נטוי
+        .replace(/'/g, "\\'")   // גרש בודד
+        .replace(/"/g, '\\"')   // גרשיים
+        .replace(/\n/g, ' ')    // החלפת ירידת שורה ברווח (מונע SyntaxError)
+        .replace(/\r/g, ' ');
 }
 
-// 2. פונקציית הגנה על טקסט ב-HTML
 function escapeHtml(text) {
     if (!text) return "";
     return text
@@ -23,28 +45,10 @@ function escapeHtml(text) {
         .replace(/'/g, "&#39;");
 }
 
-// 3. פונקציית הגנה על טקסט בתוך פקודות JavaScript (כמו onclick)
-// הוסף את פונקציית העזר הזו בראש הקובץ אם היא לא קיימת
-function escapeJS(text) {
-    if (!text) return "";
-    // החלפת גרש בודד בגרש עם בריחה כפולה עבור ה-HTML onclick
-    return text.replace(/'/g, "\\\\'");
-}
-
-// בתוך renderVideoGrid, שנה את שורת ה-onclick:
-const safeTitle = escapeJS(v.title || "");
-const safeChannel = escapeJS(v.channel_title || "");
-
-// השורה ב-HTML צריכה להיראות כך:
-return `
-    <div class="v-card" onclick="playVideo('${v.id}', '${safeTitle}', '${safeChannel}')">
-    ...
-`;
 async function init() {
     const { data: { user } } = await client.auth.getUser();
     currentUser = user;
     updateUserUI();
-    
     if (user) {
         const { data: favs } = await client.from('favorites').select('video_id').eq('user_id', user.id);
         userFavorites = favs ? favs.map(f => f.video_id) : [];
@@ -64,14 +68,13 @@ function updateUserUI() {
                     <span style="font-size:14px; font-weight:bold;">${escapeHtml(currentUser.user_metadata.full_name)}</span>
                     <span onclick="logout()" style="color:#b3b3b3; font-size:11px; cursor:pointer; text-decoration:underline;">התנתק</span>
                 </div>
-            </div>
-        `;
+            </div>`;
     }
 }
 
 async function logout() { await client.auth.signOut(); window.location.reload(); }
 
-// 4. חיפוש FTS בלבד (ללא ILIKE)
+// חיפוש FTS ותרגום
 async function fetchVideos(query = "") {
     const rawQuery = query.trim();
     if (!rawQuery) {
@@ -79,18 +82,15 @@ async function fetchVideos(query = "") {
         renderVideoGrid(data);
         return;
     }
-
-    const cleanQuery = cleanFtsQuery(rawQuery);
-    
-    // שליחה ל-RPC של חיפוש FTS
-    const { data, error } = await client.rpc('search_videos_prioritized', { search_term: cleanQuery });
-    if (!error) renderVideoGrid(data || []);
+    const cleanQuery = rawQuery.replace(/[^\w\sא-ת]/g, ' ').trim();
+    const { data } = await client.rpc('search_videos_prioritized', { search_term: cleanQuery });
+    renderVideoGrid(data || []);
 
     clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(async () => {
         const translated = await getTranslation(cleanQuery);
         if (translated && translated.toLowerCase() !== cleanQuery.toLowerCase()) {
-            const { data: transData } = await client.rpc('search_videos_prioritized', { search_term: cleanFtsQuery(translated) });
+            const { data: transData } = await client.rpc('search_videos_prioritized', { search_term: translated });
             if (transData) renderVideoGrid(transData, true);
         }
     }, 800);
@@ -104,50 +104,66 @@ async function getTranslation(text) {
     } catch (e) { return null; }
 }
 
-// 5. רינדור גריד עם טיפול בגרשים
 function renderVideoGrid(data, append = false) {
     const grid = document.getElementById('videoGrid');
     if (!grid || !data) return;
     
     const html = data.map(v => {
         const isFav = userFavorites.includes(v.id);
-        const displayTitle = escapeHtml(v.title);
-        const displayChannel = escapeHtml(v.channel_title);
-        const displayDesc = escapeHtml(v.description);
-
-        // כאן התיקון הקריטי לסרטונים כמו "מ"ג" או "שליט"א"
-        const jsTitle = escapeJS(v.title);
-        const jsChannel = escapeJS(v.channel_title);
+        const categoryName = categoryMap[v.category_id] || "כללי";
+        
+        // ניקוי כפול למניעת שגיאות Syntax
+        const safeTitle = cleanForJS(v.title);
+        const safeChannel = cleanForJS(v.channel_title);
+        const safeDesc = escapeHtml(v.description);
 
         return `
-            <div class="v-card" onclick="playVideo('${v.id}', '${jsTitle}', '${jsChannel}')">
+            <div class="v-card" onclick="playVideo('${v.id}', '${safeTitle}', '${safeChannel}')">
                 <div class="card-img-container">
                     <img src="${v.thumbnail}" loading="lazy">
-                    <div class="video-description-overlay">${displayDesc}</div>
+                    <div class="video-description-overlay">${safeDesc}</div>
                 </div>
-                <h3>${displayTitle}</h3>
+                <h3>${escapeHtml(v.title)}</h3>
                 <div class="card-footer">
-                    <span>${displayChannel}</span>
+                    <span>${escapeHtml(v.channel_title)} | ${categoryName}</span>
                     <button class="fav-btn" onclick="event.stopPropagation(); toggleFavorite('${v.id}')">
                         <i class="${isFav ? 'fa-solid' : 'fa-regular'} fa-heart" id="fav-icon-${v.id}"></i>
                     </button>
                 </div>
-            </div>
-        `;
+            </div>`;
     }).join('');
     grid.innerHTML = append ? grid.innerHTML + html : html;
 }
 
-// 6. הפעלת סרטון (טעינה ישירה ב-Iframe)
+function playVideo(id, title, channel) {
+    const playerWin = document.getElementById('floating-player');
+    const container = document.getElementById('youtubePlayer');
+    playerWin.style.display = 'flex'; 
+    container.innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen style="width: 100%; height: 100%; display: block;"></iframe>`;
+    document.getElementById('current-title').innerText = title;
+    document.getElementById('current-channel').innerText = channel;
+    isPlaying = true;
+    updatePlayStatus(true);
+    if (currentUser) client.from('history').upsert({ user_id: currentUser.id, video_id: id, created_at: new Date() });
+}
+
+// ... שאר הפונקציות (togglePlayPause, drag logic, favorites) נשארות כפי שהן ...
+// --- נגן ופקדי שליחה (עקיפת חסימות ושיפור מהירות) ---
 function playVideo(id, title, channel) {
     const playerWin = document.getElementById('floating-player');
     const container = document.getElementById('youtubePlayer');
     
+    // הצגת החלון כ-Flex כדי להתאים ל-CSS המתוקן
     playerWin.style.display = 'flex'; 
+    
+    // טעינת ה-iframe באופן ישיר לביצועים מקסימליים
     container.innerHTML = `
-        <iframe src="https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1" 
-                frameborder="0" allow="autoplay; encrypted-media" allowfullscreen 
-                style="width: 100%; height: 100%; display: block;">
+        <iframe id="yt-iframe" 
+                src="https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1&rel=0" 
+                frameborder="0" 
+                allow="autoplay; encrypted-media" 
+                allowfullscreen
+                style="width: 100%; height: 100%; border: none;">
         </iframe>`;
     
     document.getElementById('current-title').innerText = title;
@@ -155,16 +171,27 @@ function playVideo(id, title, channel) {
     isPlaying = true;
     updatePlayStatus(true);
 
+    // עדכון היסטוריה ב-Supabase אם המשתמש מחובר
     if (currentUser) {
-        client.from('history').upsert({ user_id: currentUser.id, video_id: id, created_at: new Date() });
+        client.from('history').upsert({ 
+            user_id: currentUser.id, 
+            video_id: id, 
+            created_at: new Date() 
+        });
     }
 }
 
 function togglePlayPause() {
-    const iframe = document.querySelector('#youtubePlayer iframe');
+    const iframe = document.getElementById('yt-iframe');
     if (!iframe) return;
+
     const action = isPlaying ? 'pauseVideo' : 'playVideo';
-    iframe.contentWindow.postMessage(JSON.stringify({"event": "command", "func": action, "args": ""}), "*");
+    iframe.contentWindow.postMessage(JSON.stringify({
+        "event": "command",
+        "func": action,
+        "args": ""
+    }), "*");
+
     isPlaying = !isPlaying;
     updatePlayStatus(isPlaying);
 }
@@ -174,7 +201,7 @@ function updatePlayStatus(playing) {
     if (icon) icon.className = playing ? 'fa-solid fa-pause' : 'fa-solid fa-play';
 }
 
-// 7. לוגיקת גרירה
+// --- לוגיקת גרירה חסינה (לא נתקעת ב-Iframe) ---
 const floatingPlayer = document.getElementById('floating-player');
 const dragHandle = document.getElementById('drag-handle');
 
@@ -182,9 +209,20 @@ if (dragHandle) {
     dragHandle.onmousedown = function(e) {
         if (e.target.tagName === 'BUTTON') return;
         e.preventDefault();
+        
         const rect = floatingPlayer.getBoundingClientRect();
         let shiftX = e.clientX - rect.left;
         let shiftY = e.clientY - rect.top;
+
+        // יצירת שכבת הגנה זמנית מעל ה-iframe כדי שהסמן לא יאבד במהלך גרירה מהירה
+        const overlay = document.createElement('div');
+        overlay.style.position = 'absolute';
+        overlay.style.top = '30px';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.zIndex = '1000';
+        floatingPlayer.appendChild(overlay);
 
         function moveAt(pageX, pageY) {
             floatingPlayer.style.left = pageX - shiftX + 'px';
@@ -192,18 +230,26 @@ if (dragHandle) {
             floatingPlayer.style.bottom = 'auto';
         }
 
-        function onMouseMove(event) { moveAt(event.clientX, event.clientY); }
+        function onMouseMove(event) {
+            moveAt(event.clientX, event.clientY);
+        }
+
         document.addEventListener('mousemove', onMouseMove);
+
         document.onmouseup = function() {
             document.removeEventListener('mousemove', onMouseMove);
+            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
             document.onmouseup = null;
         };
     };
+    dragHandle.ondragstart = function() { return false; };
 }
 
+// --- ניהול מועדפים והיסטוריה ---
 async function toggleFavorite(videoId) {
-    if (!currentUser) return alert("התחבר קודם");
+    if (!currentUser) return alert("עליך להתחבר כדי להוסיף למועדפים");
     const isFav = userFavorites.includes(videoId);
+    
     if (isFav) {
         await client.from('favorites').delete().eq('user_id', currentUser.id).eq('video_id', videoId);
         userFavorites = userFavorites.filter(id => id !== videoId);
@@ -211,20 +257,38 @@ async function toggleFavorite(videoId) {
         await client.from('favorites').insert([{ user_id: currentUser.id, video_id: videoId }]);
         userFavorites.push(videoId);
     }
+    
     const icon = document.getElementById(`fav-icon-${videoId}`);
-    if(icon) icon.className = userFavorites.includes(videoId) ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
+    if (icon) icon.className = userFavorites.includes(videoId) ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
 }
 
 async function loadSidebarLists() {
     if (!currentUser) return;
-    const { data: hist } = await client.from('history').select('video_id, videos(id, title)').eq('user_id', currentUser.id).limit(10).order('created_at', {ascending: false});
-    if (hist) {
-        document.getElementById('favorites-list').innerHTML = hist.map(h => h.videos ? `
-            <div class="nav-link" onclick="playVideo('${h.videos.id}', '${escapeJS(h.videos.title)}', '')">
-                <i class="fa-solid fa-clock-rotate-left"></i> ${h.videos.title}
-            </div>` : '').join('');
+    
+    const { data: hist, error } = await client
+        .from('history')
+        .select('video_id, videos(id, title, channel_title)')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+    if (hist && !error) {
+        const sidebarList = document.getElementById('favorites-list');
+        sidebarList.innerHTML = hist.map(h => {
+            if (!h.videos) return '';
+            const safeTitle = cleanForJS(h.videos.title);
+            const safeChannel = cleanForJS(h.videos.channel_title);
+            return `
+                <div class="nav-link" onclick="playVideo('${h.videos.id}', '${safeTitle}', '${safeChannel}')">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span class="truncate">${h.videos.title}</span>
+                </div>`;
+        }).join('');
     }
 }
 
+// האזנה לחיפוש
 document.getElementById('globalSearch').addEventListener('input', (e) => fetchVideos(e.target.value));
-init();
+
+// הפעלה
+init();// וודא שגם ב-loadSidebarLists אתה משתמש ב-cleanForJS(h.videos.title)
