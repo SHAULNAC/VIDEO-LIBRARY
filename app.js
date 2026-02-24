@@ -184,25 +184,49 @@ async function playVideo(id, title, channel) {
 async function loadSidebarLists() {
     if (!currentUser) return;
 
-    // טעינת מועדפים
-    const { data: favs } = await client.from('favorites').select('videos(id, title)').eq('user_id', currentUser.id);
-    const favList = document.getElementById('favorites-list');
-    if (favs && favList) {
-        favList.innerHTML = favs.map(f => f.videos ? `
-            <div class="nav-link" onclick="playVideo('${f.videos.id}', '${f.videos.title.replace(/'/g, "\\'")}', '')">
-                <i class="fa-solid fa-heart" style="color: #1DB954; font-size: 10px;"></i> ${f.videos.title}
-            </div>` : '').join('');
-    }
+    // --- טעינת מועדפים ---
+    try {
+        const { data: favs, error: favError } = await client
+            .from('favorites')
+            .select('video_id, videos(id, title)') // כאן אנחנו מושכים את פרטי הסרטון מטבלת ה-videos
+            .eq('user_id', currentUser.id);
 
-    // טעינת היסטוריה
-    const { data: hist } = await client.from('history').select('videos(id, title)').eq('user_id', currentUser.id).order('created_at', { ascending: false }).limit(10);
-    const histList = document.getElementById('history-list');
-    if (hist && histList) {
-        histList.innerHTML = hist.map(h => h.videos ? `
-            <div class="nav-link" onclick="playVideo('${h.videos.id}', '${h.videos.title.replace(/'/g, "\\'")}', '')">
-                <i class="fa-solid fa-clock-rotate-left" style="font-size: 10px;"></i> ${h.videos.title}
-            </div>` : '').join('');
-    }
+        const favList = document.getElementById('favorites-list');
+        if (favs && favList) {
+            favList.innerHTML = favs.map(f => {
+                if (!f.videos) return ''; // הגנה אם הסרטון נמחק מהמאגר
+                const safeTitle = f.videos.title.replace(/'/g, "\\'");
+                return `
+                    <div class="nav-link sidebar-item" onclick="playVideo('${f.videos.id}', '${safeTitle}', '')">
+                        <i class="fa-solid fa-heart" style="color: #1db954; font-size: 10px;"></i> 
+                        <span class="sidebar-text">${f.videos.title}</span>
+                    </div>`;
+            }).join('');
+        }
+    } catch (e) { console.error("Error favs:", e); }
+
+    // --- טעינת היסטוריה ---
+    try {
+        const { data: hist, error: histError } = await client
+            .from('history')
+            .select('video_id, videos(id, title)')
+            .eq('user_id', currentUser.id)
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+        const histList = document.getElementById('history-list');
+        if (hist && histList) {
+            histList.innerHTML = hist.map(h => {
+                if (!h.videos) return '';
+                const safeTitle = h.videos.title.replace(/'/g, "\\'");
+                return `
+                    <div class="nav-link sidebar-item" onclick="playVideo('${h.videos.id}', '${safeTitle}', '')">
+                        <i class="fa-solid fa-clock-rotate-left" style="font-size: 10px;"></i> 
+                        <span class="sidebar-text">${h.videos.title}</span>
+                    </div>`;
+            }).join('');
+        }
+    } catch (e) { console.error("Error history:", e); }
 }
 document.getElementById('globalSearch').addEventListener('input', (e) => fetchVideos(e.target.value));
 init();
