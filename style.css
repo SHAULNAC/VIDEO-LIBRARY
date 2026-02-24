@@ -8,10 +8,14 @@
 }
 
 body {
-    margin: 0; font-family: 'Segoe UI', Tahoma, sans-serif;
-    background-color: var(--black); color: var(--text-white);
-    display: grid; grid-template-columns: 260px 1fr;
-    grid-template-rows: 1fr 90px; height: 100vh;
+    margin: 0; 
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background-color: var(--black); 
+    color: var(--text-white);
+    display: grid; 
+    grid-template-columns: 260px 1fr;
+    grid-template-rows: 1fr 90px; 
+    height: 100vh;
     overflow: hidden;
 }
 
@@ -44,6 +48,11 @@ body {
 .card-img-container { position: relative; width: 100%; aspect-ratio: 16/9; border-radius: 4px; overflow: hidden; }
 .v-card img { width: 100%; height: 100%; object-fit: cover; }
 
+.duration-badge {
+    position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.8);
+    color: white; padding: 2px 5px; border-radius: 4px; font-size: 11px;
+}
+
 .video-description-overlay {
     position: absolute; top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(0, 0, 0, 0.85); color: #eee; font-size: 11px;
@@ -58,41 +67,113 @@ body {
 
 .card-footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--text-dim); }
 
-/* Floating Player */
+/* --- Floating Player (תיקון הסרטון בחלון) --- */
 .floating-window {
-    position: fixed; bottom: 100px; left: 20px; width: 350px; height: 230px;
-    background: #000; border-radius: 12px; overflow: hidden;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.8); z-index: 9999; display: none; border: 1px solid #333;
+    position: fixed; 
+    bottom: 100px; 
+    left: 20px; 
+    width: 380px; 
+    height: 260px;
+    background: #000; 
+    border-radius: 12px; 
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8); 
+    z-index: 9999; 
+    display: none; 
+    flex-direction: column;
+    border: 1px solid #333;
 }
 
-.window-header { height: 30px; background: #181818; cursor: move; display: flex; justify-content: center; align-items: center; color: #b3b3b3; }
-#youtubePlayer { width: 100%; height: calc(100% - 30px); }
+.window-header { 
+    height: 35px; 
+    background: #181818; 
+    cursor: move; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    color: #b3b3b3; 
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+#youtubePlayer { 
+    width: 100%; 
+    flex-grow: 1; /* לוקח את כל השטח שנשאר מתחת לכותרת */
+    position: relative;
+}
+
+#yt-iframe {
+    width: 100% !important;
+    height: 100% !important;
+    border: none;
+    display: block;
+}
 
 .resizer {
     width: 15px; height: 15px; position: absolute; right: 0; bottom: 0;
-    cursor: nwse-resize; z-index: 10;
-}
-/* מבטיח שהסרטון ימלא את כל שטח הנגן */
-#yt-iframe {
-    width: 100%;
-    height: 100%;
-    border-radius: 0 0 12px 12px; /* עיגול פינות תחתונות בהתאם לחלון */
+    cursor: nwse-resize; z-index: 10000;
 }
 
-/* מוודא שמיכל הנגן עצמו גמיש */
-#youtubePlayer {
-    width: 100%;
-    height: calc(100% - 30px); /* מפחית את גובה כותרת הגרירה */
-}
-/* Player Bar */
+/* --- Player Bar (תיקון נראות הסרגל) --- */
 .player-bar {
-    grid-column: span 2; background: black; border-top: 1px solid #282828;
-    display: grid; grid-template-columns: 1fr 2fr 1fr; align-items: center; padding: 0 20px;
+    grid-column: span 2; 
+    background: #000; 
+    border-top: 1px solid #282828;
+    display: grid; 
+    grid-template-columns: 1fr 2fr 1fr; 
+    align-items: center; 
+    padding: 0 20px;
+    height: 90px;
+    z-index: 10000;
 }
 
-.player-center { display: flex; flex-direction: column; align-items: center; }
-.main-play-btn { background: white; border: none; border-radius: 50%; width: 38px; height: 38px; cursor: pointer; transition: 0.2s; margin-bottom: 4px; }
+.now-playing { display: flex; align-items: center; gap: 15px; overflow: hidden; }
+
+.player-center { 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center;
+    gap: 8px;
+}
+
+.player-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 15px;
+}
+
+.main-play-btn { 
+    background: white; border: none; border-radius: 50%; 
+    width: 38px; height: 38px; cursor: pointer; 
+    transition: 0.2s; display: flex; align-items: center; justify-content: center;
+}
 .main-play-btn:hover { transform: scale(1.05); }
 
-.bottom-desc { font-size: 11px; color: var(--text-dim); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px; }
+.bottom-desc { 
+    font-size: 11px; 
+    color: var(--text-dim); 
+    text-align: center; 
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    max-width: 500px;
+}
+
 .video-meta-sub { font-size: 11px; color: var(--text-dim); }
+
+.video-stats-spotify {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+.hidden-player { display: none; }
+.show-player { display: grid; }
+
+/* Utility */
+.fav-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; }
+.fav-btn:hover { color: white; }
