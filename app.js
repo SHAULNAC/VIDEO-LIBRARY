@@ -27,6 +27,7 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
 function formatDuration(isoDuration) {
     if (!isoDuration || !isoDuration.startsWith('PT')) return "0:00";
     const match = isoDuration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
@@ -40,25 +41,22 @@ function formatDuration(isoDuration) {
     parts.push(seconds.toString().padStart(2, '0'));
     return parts.join(':');
 }
+
 // --- אתחול ---
 
 async function init() {
     try {
-        // 1. בדיקת משתמש נוכחי בטעינת הדף
         const { data: { user } } = await client.auth.getUser();
         currentUser = user;
         
-        // 2. האזנה לשינויים (כניסה/יציאה)
         client.auth.onAuthStateChange((event, session) => {
             currentUser = session?.user || null;
             updateUserUI();
             if (currentUser) loadSidebarLists();
         });
 
-        // 3. עדכון הממשק
         updateUserUI();
         
-        // 4. טעינת נתונים מותאמים אישית אם יש משתמש
         if (currentUser) {
             const { data: favs } = await client.from('favorites')
                 .select('video_id')
@@ -67,19 +65,20 @@ async function init() {
             loadSidebarLists();
         }
 
-        // 5. טעינת סרטונים והפעלת פונקציות עזר
         fetchVideos();
         initDraggable();
         initResizer(); 
 
     } catch (error) {
-        console.error("שגיאה באתחול האפליקציה:", error);
+        console.error("Error during init:", error);
     }
 }
 
 function updateUserUI() {
     const userDiv = document.getElementById('user-profile');
-    if (currentUser && userDiv && currentUser.user_metadata) {
+    if (!userDiv) return;
+
+    if (currentUser && currentUser.user_metadata) {
         const avatar = currentUser.user_metadata.avatar_url || "";
         userDiv.innerHTML = `
             <div style="display:flex; align-items:center; gap:10px;">
@@ -89,23 +88,25 @@ function updateUserUI() {
                     <span onclick="logout()" style="color:#b3b3b3; font-size:11px; cursor:pointer; text-decoration:underline;">התנתק</span>
                 </div>
             </div>`;
+    } else {
+        userDiv.innerHTML = `<button class="btn-login" onclick="login()">התחבר עם Google</button>`;
     }
 }
-// פונקציית התחברות עם גוגל
+
 async function login() {
     const { error } = await client.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            // זה מבטיח שגם אם אתה בתיקייה פנימית, הוא יחזור אליה
             redirectTo: window.location.origin + window.location.pathname 
         }
     });
     if (error) console.error("Login error:", error.message);
 }
 
-// עדכון פונקציית ה-init כדי להאזין לשינויי התחברות
-
-async function logout() { await client.auth.signOut(); window.location.reload(); }
+async function logout() { 
+    await client.auth.signOut(); 
+    window.location.reload(); 
+}
 
 // --- חיפוש ---
 
@@ -118,8 +119,6 @@ async function fetchVideos(query = "") {
     }
 
     const cleanQuery = rawQuery.replace(/[^\w\sא-ת]/g, ' ').trim();
-    
-    // בחיפוש FTS ב-Supabase, מומלץ להשתמש ב-RPC שמוגדר עם תעדוף (A לכותרת, B לתיאור)
     const { data } = await client.rpc('search_videos_prioritized', { search_term: cleanQuery });
     renderVideoGrid(data || []);
 
@@ -151,7 +150,6 @@ function renderVideoGrid(data, append = false) {
         const isFav = userFavorites.includes(v.id);
         const catName = categoryMap[v.category_id] || "כללי";
         
-        // יצירת אובייקט עם כל הנתונים שביקשת להציג בבר
         const vInfo = {
             id: v.id,
             t: v.title,
@@ -182,6 +180,7 @@ function renderVideoGrid(data, append = false) {
     }).join('');
     grid.innerHTML = append ? grid.innerHTML + html : html;
 }
+
 function preparePlay(encodedData) {
     try {
         const data = JSON.parse(decodeURIComponent(atob(encodedData)));
@@ -193,15 +192,13 @@ function preparePlay(encodedData) {
 
 function playVideo(data) {
     const playerWin = document.getElementById('floating-player');
-    const playerBar = document.getElementById('main-player-bar'); // הסרגל התחתון
+    const playerBar = document.getElementById('main-player-bar'); 
     const container = document.getElementById('youtubePlayer');
     
     if (!playerWin || !container) return;
 
-    // 1. הצגת חלון הוידאו (ה-CSS שנתתי מקודם ידאג למרכוז)
     playerWin.style.display = 'flex'; 
 
-    // 2. הפעלת ההנפשה של הסרגל התחתון (עולה מלמטה)
     if (playerBar) {
         playerBar.classList.remove('hidden-player');
         playerBar.classList.add('show-player');
@@ -227,7 +224,6 @@ function playVideo(data) {
                 allowfullscreen>
         </iframe>`;
     
-    // --- עדכון נתונים בסרגל ---
     document.getElementById('current-title').textContent = data.t || "";
     document.getElementById('current-channel').textContent = data.c || "";
     
@@ -243,42 +239,43 @@ function playVideo(data) {
     if (document.getElementById('stat-likes')) 
         document.getElementById('stat-likes').innerHTML = `<i class="fa-solid fa-thumbs-up"></i> ${data.l}`;
     
-    // הצגת התיאור המלא בצורה אלגנטית (בלי קיצור ל-100 תווים)
     const descElem = document.getElementById('bottom-description');
     if (descElem && data.desc) {
-        descElem.textContent = data.desc; // נותנים ל-CSS (line-clamp) לטפל בחיתוך היפה
+        descElem.textContent = data.desc;
     }
 
-    // הקפצת שאלת שימושיות אחרי 30 שניות
     setTimeout(() => {
         if (isPlaying && document.getElementById('yt-iframe')) {
             showEfficiencyPoll(data.id);
         }
     }, 30000);
 
-    // היסטוריה
     if (currentUser) {
         client.from('history').upsert([
             { user_id: currentUser.id, video_id: data.id, created_at: new Date() }
         ]).then(() => {
-            if (typeof loadSidebarLists === 'function') loadSidebarLists();
+            loadSidebarLists();
         });
     }
 
     isPlaying = true;
-    if (typeof updatePlayStatus === 'function') updatePlayStatus(true);
+    updatePlayStatus(true);
 }
+
 function closePlayer() {
     const playerWin = document.getElementById('floating-player');
     const container = document.getElementById('youtubePlayer');
-    playerWin.style.display = 'none';
-    container.innerHTML = ''; // עצירת הוידאו
+    if (playerWin) playerWin.style.display = 'none';
+    if (container) container.innerHTML = ''; 
     isPlaying = false;
     updatePlayStatus(false);
 }
+
 function initDraggable() {
     const player = document.getElementById('floating-player');
     const handle = document.getElementById('drag-handle');
+    if(!player || !handle) return;
+    
     let isDragging = false;
     let offsetX, offsetY;
 
@@ -286,19 +283,43 @@ function initDraggable() {
         isDragging = true;
         offsetX = e.clientX - player.offsetLeft;
         offsetY = e.clientY - player.offsetTop;
-        player.style.transition = 'none'; // ביטול אנימציה בזמן גרירה
+        player.style.transition = 'none';
     });
 
     document.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
         player.style.left = `${e.clientX - offsetX}px`;
         player.style.top = `${e.clientY - offsetY}px`;
-        player.style.bottom = 'auto'; // מבטל הצמדה לתחתית
+        player.style.bottom = 'auto'; 
     });
 
     document.addEventListener('mouseup', () => {
         isDragging = false;
     });
+}
+
+function initResizer() {
+    const player = document.getElementById('floating-player');
+    const resizer = document.getElementById('resizer');
+    if(!player || !resizer) return;
+    
+    resizer.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        window.addEventListener('mousemove', resize);
+        window.addEventListener('mouseup', stopResize);
+    });
+
+    function resize(e) {
+        const newWidth = e.clientX - player.offsetLeft;
+        const newHeight = e.clientY - player.offsetTop;
+        if (newWidth > 200) player.style.width = newWidth + 'px';
+        if (newHeight > 150) player.style.height = newHeight + 'px';
+    }
+
+    function stopResize() {
+        window.removeEventListener('mousemove', resize);
+        window.removeEventListener('mouseup', stopResize);
+    }
 }
 
 function togglePlayPause() {
@@ -328,6 +349,7 @@ async function toggleFavorite(videoId) {
     const icon = document.getElementById(`fav-icon-${videoId}`);
     if (icon) icon.className = userFavorites.includes(videoId) ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
 }
+
 function showEfficiencyPoll(videoId) {
     const poll = document.createElement('div');
     poll.className = 'feedback-toast';
@@ -347,20 +369,11 @@ async function submitEfficiency(videoId, score, btn) {
         setTimeout(() => document.querySelectorAll('.feedback-toast').forEach(t => t.remove()), 2000);
     }
 }
-// --- עדכון פונקציית טעינת הרשימות בסיידבר ---
+
 async function loadSidebarLists() {
     if (!currentUser) return;
-    
-    // שליפת היסטוריה
-    const { data: hist } = await client.from('history')
-        .select('videos(*)')
-        .eq('user_id', currentUser.id)
-        .order('created_at', { ascending: false })
-        .limit(20);
-
     const sidebarList = document.getElementById('favorites-list');
-    if (sidebarList && hist) {
-        // יצירת כפתור "היסטוריה" שבלחיצה עליו הגריד המרכזי יתמלא
+    if (sidebarList) {
         sidebarList.innerHTML = `
             <div class="nav-link" onclick='displayHistory()'>
                 <i class="fa-solid fa-clock-rotate-left"></i>
@@ -374,67 +387,24 @@ async function loadSidebarLists() {
     }
 }
 
-// פונקציות להצגת הנתונים בגריד הראשי
-// פונקציה להצגת היסטוריה
 async function displayHistory() {
     if (!currentUser) return;
     const { data } = await client.from('history').select('*, videos(*)').eq('user_id', currentUser.id).order('created_at', { ascending: false });
-    
-    // בדיקה אם האלמנט קיים לפני עדכון הטקסט
     const title = document.getElementById('main-title');
     if (title) title.textContent = "היסטוריית צפייה";
-
     if (data) renderVideoGrid(data.map(i => i.videos).filter(v => v));
 }
 
-// פונקציה להצגת מועדפים
 async function displayFavorites() {
     if (!currentUser) return;
     const { data } = await client.from('favorites').select('*, videos(*)').eq('user_id', currentUser.id);
-    
     const title = document.getElementById('main-title');
     if (title) title.textContent = "מועדפים";
-
     if (data) renderVideoGrid(data.map(i => i.videos).filter(v => v));
 }
 
-// --- הוספת פונקציית סגירה לנגן ---
-function closePlayer() {
-    const playerWin = document.getElementById('floating-player');
-    const container = document.getElementById('youtubePlayer');
-    if (playerWin) playerWin.style.display = 'none';
-    if (container) container.innerHTML = ''; 
-    isPlaying = false;
-    updatePlayStatus(false);
-}
-function initResizer() {
-    const player = document.getElementById('floating-player');
-    const resizer = document.getElementById('resizer');
-    
-    resizer.addEventListener('mousedown', (e) => {
-        e.preventDefault();
-        window.addEventListener('mousemove', resize);
-        window.addEventListener('mouseup', stopResize);
-    });
-
-    function resize(e) {
-        // חישוב רוחב וגובה חדשים על בסיס מיקום העכבר
-        const newWidth = e.clientX - player.offsetLeft;
-        const newHeight = e.clientY - player.offsetTop;
-        
-        // הגדרת גבולות מינימליים כדי שהנגן לא ייעלם
-        if (newWidth > 200) player.style.width = newWidth + 'px';
-        if (newHeight > 150) player.style.height = newHeight + 'px';
-    }
-
-    function stopResize() {
-        window.removeEventListener('mousemove', resize);
-        window.removeEventListener('mouseup', stopResize);
-    }
-}
-
-// קריאה לפונקציה בתוך ה-init
-// חפש את פונקציית ה-init הקיימת והוסף בה:
-// initResizer();
+// מאזינים לאירועים
 document.getElementById('globalSearch').addEventListener('input', (e) => fetchVideos(e.target.value));
+
+// הפעלה
 init();
