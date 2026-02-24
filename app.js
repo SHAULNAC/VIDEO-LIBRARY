@@ -4,7 +4,7 @@ const client = supabase.createClient(SB_URL, SB_KEY);
 
 let currentUser = null;
 let userFavorites = [];
-let player; 
+let player; // הגדרה אחת בלבד כאן
 let isPlayerReady = false;
 
 async function init() {
@@ -52,18 +52,19 @@ async function fetchVideos(query = "") {
 
 function renderVideoGrid(data) {
     const grid = document.getElementById('videoGrid');
-    if (!grid || !data) return;
+    if (!grid) return;
+    if (!data || data.length === 0) {
+        grid.innerHTML = "<p style='padding:20px;'>לא נמצאו סרטונים.</p>";
+        return;
+    }
     
     grid.innerHTML = data.map(v => {
-        const safeTitle = (v.title || "").replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        const safeChannel = (v.channel_title || "").replace(/'/g, "\\'").replace(/"/g, '&quot;');
         const isFav = userFavorites.includes(v.id);
-        
         return `
-            <div class="v-card" onclick="playVideo('${v.id}', '${safeTitle}', '${safeChannel}')">
+            <div class="v-card" onclick="playVideo('${v.id}', '${v.title.replace(/'/g, "\\'")}', '${v.channel_title.replace(/'/g, "\\'")}')">
                 <div class="card-img-container">
-                    <img src="${v.thumbnail || ''}" loading="lazy">
-                    <div class="video-description-overlay">${(v.description || "").replace(/'/g, "\\'")}</div>
+                    <img src="${v.thumbnail}" loading="lazy">
+                    <div class="video-description-overlay">${v.description || ''}</div>
                 </div>
                 <h3>${v.title}</h3>
                 <div class="card-footer">
@@ -80,7 +81,9 @@ function renderVideoGrid(data) {
 // YouTube API
 function onYouTubeIframeAPIReady() {
     player = new YT.Player('youtubePlayer', {
-        playerVars: { 'autoplay': 1, 'controls': 1, 'rel': 0 },
+        height: '100%',
+        width: '100%',
+        playerVars: { 'autoplay': 1, 'controls': 1, 'rel': 0, 'origin': window.location.origin },
         events: {
             'onReady': () => { isPlayerReady = true; },
             'onStateChange': (event) => {
@@ -93,62 +96,68 @@ function onYouTubeIframeAPIReady() {
 }
 
 async function playVideo(id, title, channel) {
-    document.getElementById('floating-player').style.display = 'block';
-    if (isPlayerReady) player.loadVideoById(id);
+    const floatingPlayer = document.getElementById('floating-player');
+    floatingPlayer.style.display = 'block';
+    
+    if (isPlayerReady && player && player.loadVideoById) {
+        player.loadVideoById(id);
+    }
 
     document.getElementById('current-title').innerText = title;
     document.getElementById('current-channel').innerText = channel;
 
-    const { data } = await client.from('videos').select('*').eq('id', id).single();
-    if (data) {
-        document.getElementById('bottom-description').innerText = data.description || "";
-        document.getElementById('video-duration').innerText = data.duration || "00:00";
-        if (data.published_at) {
-            document.getElementById('current-date').innerText = new Date(data.published_at).toLocaleDateString('he-IL');
-        }
-        // הוספה להיסטוריה ב-DB במידה ומחובר
-        if (currentUser) {
-            await client.from('history').upsert({ user_id: currentUser.id, video_id: id, created_at: new Date() });
-            loadSidebarLists();
-        }
+    // הוספה להיסטוריה במידה ומחובר
+    if (currentUser) {
+        await client.from('history').upsert({ user_id: currentUser.id, video_id: id, created_at: new Date() });
+        loadSidebarLists();
     }
 }
 
 function togglePlayPause() {
-    if (!isPlayerReady) return;
-    if (player.getPlayerState() === YT.PlayerState.PLAYING) player.pauseVideo();
+    if (!isPlayerReady || !player) return;
+    const state = player.getPlayerState();
+    if (state === YT.PlayerState.PLAYING) player.pauseVideo();
     else player.playVideo();
 }
 
-// גרירה ושינוי גודל
-const floatingPlayer = document.getElementById('floating-player');
-const dragHandle = document.getElementById('drag-handle');
-const resizer = document.getElementById('resizer');
+// לוגיקת גרירה ושינוי גודל משופרת
+const floatingWin = document.getElementById('floating-player');
+const handle = document.getElementById('drag-handle');
+const resizeBtn = document.getElementById('resizer');
 
-dragHandle.onmousedown = (e) => {
-    let shiftX = e.clientX - floatingPlayer.getBoundingClientRect().left;
-    let shiftY = e.clientY - floatingPlayer.getBoundingClientRect().top;
-    document.onmousemove = (e) => {
-        floatingPlayer.style.left = e.clientX - shiftX + 'px';
-        floatingPlayer.style.top = e.clientY - shiftY + 'px';
-    };
-    document.onmouseup = () => document.onmousemove = null;
+handle.onmousedown = function(e) {
+    let shiftX = e.clientX - floatingWin.getBoundingClientRect().left;
+    let shiftY = e.clientY - floatingWin.getBoundingClientRect().top;
+    
+    function moveAt(pageX, pageY) {
+        floatingWin.style.left = pageX - shiftX + 'px';
+        floatingWin.style.top = pageY - shiftY + 'px';
+        floatingWin.style.bottom = 'auto';
+    }
+    
+    function onMouseMove(e) { moveAt(e.clientX, e.clientY); }
+    document.addEventListener('mousemove', onMouseMove);
+    document.onmouseup = () => document.removeEventListener('mousemove', onMouseMove);
 };
 
-resizer.onmousedown = (e) => {
+resizeBtn.onmousedown = function(e) {
     e.preventDefault();
-    const startWidth = floatingPlayer.offsetWidth;
+    const startWidth = floatingWin.offsetWidth;
     const startX = e.clientX;
-    document.onmousemove = (e) => {
-        const width = startWidth + (e.clientX - startX);
-        floatingPlayer.style.width = width + 'px';
-        floatingPlayer.style.height = (width * 0.56) + 30 + 'px';
-    };
-    document.onmouseup = () => document.onmousemove = null;
+    
+    function onMouseMove(e) {
+        const newWidth = startWidth + (e.clientX - startX);
+        if (newWidth > 200) {
+            floatingWin.style.width = newWidth + 'px';
+            floatingWin.style.height = (newWidth * 0.56) + 30 + 'px';
+        }
+    }
+    document.addEventListener('mousemove', onMouseMove);
+    document.onmouseup = () => document.removeEventListener('mousemove', onMouseMove);
 };
 
 async function toggleFavorite(videoId) {
-    if (!currentUser) return alert("עליך להתחבר");
+    if (!currentUser) return alert("עליך להתחבר כדי להוסיף למועדפים");
     const isCurrentlyFav = userFavorites.includes(videoId);
     if (isCurrentlyFav) {
         await client.from('favorites').delete().eq('user_id', currentUser.id).eq('video_id', videoId);
@@ -166,8 +175,8 @@ async function loadSidebarLists() {
     const { data: favs } = await client.from('favorites').select('video_id, videos(id, title)').eq('user_id', currentUser.id);
     if (favs) {
         document.getElementById('favorites-list').innerHTML = favs.map(f => f.videos ? `
-            <div class="nav-link">
-                <span onclick="playVideo('${f.videos.id}', '${f.videos.title.replace(/'/g, "\\'")}', '')">${f.videos.title}</span>
+            <div class="nav-link" onclick="playVideo('${f.videos.id}', '${f.videos.title.replace(/'/g, "\\'")}', '')">
+                <i class="fa-solid fa-play" style="font-size:10px;"></i> ${f.videos.title}
             </div>` : '').join('');
     }
 }
