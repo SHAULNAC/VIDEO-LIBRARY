@@ -7,48 +7,28 @@ let userFavorites = [];
 let debounceTimeout = null;
 let isPlaying = false;
 
-// מיפוי קטגוריות יוטיוב לעברית
 const categoryMap = {
-    "1": "סרטים ואנימציה",
-    "2": "רכבים",
-    "10": "מוזיקה",
-    "15": "חיות מחמד",
-    "17": "ספורט",
-    "20": "גיימינג",
-    "22": "אנשים ובלוגים",
-    "23": "קומדיה",
-    "24": "בידור",
-    "25": "חדשות ופוליטיקה",
-    "26": "מדריכים וסטייל",
-    "27": "חינוך",
-    "28": "מדע וטכנולוגיה"
+    "1": "סרטים ואנימציה", "2": "רכבים", "10": "מוזיקה", "15": "חיות מחמד",
+    "17": "ספורט", "20": "גיימינג", "22": "אנשים ובלוגים", "23": "קומדיה",
+    "24": "בידור", "25": "חדשות ופוליטיקה", "26": "מדריכים וסטייל",
+    "27": "חינוך", "28": "מדע וטכנולוגיה"
 };
 
-// --- פונקציות עזר וניקוי ---
+// --- פונקציות עזר ---
 
-// ניקוי חזק למניעת שגיאות Syntax ב-JS (מטפל בגרשים ושורות חדשות)
 function cleanForJS(text) {
     if (!text) return "";
-    return text
-        .replace(/\\/g, '\\\\') 
-        .replace(/'/g, "\\'")   
-        .replace(/"/g, '\\"')   
-        .replace(/\n/g, ' ')    
-        .replace(/\r/g, ' ');
+    return text.replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, ' ');
 }
 
-// הגנה על הזרקת HTML
 function escapeHtml(text) {
     if (!text) return "";
-    return text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
-// --- אתחול וניהול משתמש ---
+// --- אתחול ---
 
 async function init() {
     const { data: { user } } = await client.auth.getUser();
@@ -61,6 +41,7 @@ async function init() {
         loadSidebarLists();
     }
     fetchVideos();
+    initDraggable(); // הפעלת הגרירה
 }
 
 function updateUserUI() {
@@ -80,7 +61,7 @@ function updateUserUI() {
 
 async function logout() { await client.auth.signOut(); window.location.reload(); }
 
-// --- מערכת חיפוש ותרגום ---
+// --- חיפוש ---
 
 async function fetchVideos(query = "") {
     const rawQuery = query.trim();
@@ -90,14 +71,12 @@ async function fetchVideos(query = "") {
         return;
     }
 
-    // ניקוי תווים מיוחדים לחיפוש FTS
     const cleanQuery = rawQuery.replace(/[^\w\sא-ת]/g, ' ').trim();
     
-    // שלב 1: חיפוש בעברית/מקור
+    // בחיפוש FTS ב-Supabase, מומלץ להשתמש ב-RPC שמוגדר עם תעדוף (A לכותרת, B לתיאור)
     const { data } = await client.rpc('search_videos_prioritized', { search_term: cleanQuery });
     renderVideoGrid(data || []);
 
-    // שלב 2: תרגום וחיפוש באנגלית לאחר השהיה
     clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(async () => {
         const translated = await getTranslation(cleanQuery);
@@ -116,7 +95,7 @@ async function getTranslation(text) {
     } catch (e) { return null; }
 }
 
-// --- רינדור ממשק ---
+// --- רינדור ---
 
 function renderVideoGrid(data, append = false) {
     const grid = document.getElementById('videoGrid');
@@ -126,25 +105,24 @@ function renderVideoGrid(data, append = false) {
         const isFav = userFavorites.includes(v.id);
         const categoryName = categoryMap[v.category_id] || "כללי";
         
-        // הכנה בטוחה ל-JS
-        const safeTitle = cleanForJS(v.title);
-        const safeChannel = cleanForJS(v.channel_title);
-        // הכנה בטוחה ל-HTML
-        const displayTitle = escapeHtml(v.title);
-        const displayChannel = escapeHtml(v.channel_title);
-        const displayDesc = escapeHtml(v.description);
+        // יצירת אובייקט בטוח להעברה
+        const videoData = JSON.stringify({
+            id: v.id,
+            title: cleanForJS(v.title),
+            channel: cleanForJS(v.channel_title)
+        }).replace(/"/g, '&quot;');
 
         return `
-            <div class="v-card" onclick="playVideo('${v.id}', '${safeTitle}', '${safeChannel}')">
+            <div class="v-card" onclick='preparePlay(${videoData})'>
                 <div class="card-img-container">
                     <img src="${v.thumbnail}" loading="lazy">
-                    <div class="video-description-overlay">${displayDesc}</div>
+                    <div class="video-description-overlay">${escapeHtml(v.description)}</div>
                 </div>
-                <h3>${displayTitle}</h3>
+                <h3>${escapeHtml(v.title)}</h3>
                 <div class="card-footer">
-                    <span>${displayChannel} | ${categoryName}</span>
+                    <span>${escapeHtml(v.channel_title)} | ${categoryName}</span>
                     <button class="fav-btn" onclick="event.stopPropagation(); toggleFavorite('${v.id}')">
-                        <i class="${isFav ? 'fa-solid' : 'fa-heart'} ${isFav ? '' : 'fa-regular'}" id="fav-icon-${v.id}"></i>
+                        <i class="${isFav ? 'fa-solid' : 'fa-regular'} fa-heart" id="fav-icon-${v.id}"></i>
                     </button>
                 </div>
             </div>`;
@@ -152,7 +130,11 @@ function renderVideoGrid(data, append = false) {
     grid.innerHTML = append ? grid.innerHTML + html : html;
 }
 
-// --- נגן ופקדים ---
+function preparePlay(video) {
+    playVideo(video.id, video.title, video.channel);
+}
+
+// --- נגן וגרירה ---
 
 function playVideo(id, title, channel) {
     const playerWin = document.getElementById('floating-player');
@@ -162,10 +144,7 @@ function playVideo(id, title, channel) {
     container.innerHTML = `
         <iframe id="yt-iframe" 
                 src="https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1&rel=0" 
-                frameborder="0" 
-                allow="autoplay; encrypted-media" 
-                allowfullscreen
-                style="width: 100%; height: 100%; border: none; display: block;">
+                frameborder="0" allow="autoplay; encrypted-media" allowfullscreen>
         </iframe>`;
     
     document.getElementById('current-title').innerText = title;
@@ -178,17 +157,36 @@ function playVideo(id, title, channel) {
     }
 }
 
+function initDraggable() {
+    const player = document.getElementById('floating-player');
+    const handle = document.getElementById('drag-handle');
+    let isDragging = false;
+    let offsetX, offsetY;
+
+    handle.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        offsetX = e.clientX - player.offsetLeft;
+        offsetY = e.clientY - player.offsetTop;
+        player.style.transition = 'none'; // ביטול אנימציה בזמן גרירה
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        player.style.left = `${e.clientX - offsetX}px`;
+        player.style.top = `${e.clientY - offsetY}px`;
+        player.style.bottom = 'auto'; // מבטל הצמדה לתחתית
+    });
+
+    document.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
+}
+
 function togglePlayPause() {
     const iframe = document.getElementById('yt-iframe');
     if (!iframe) return;
-
     const action = isPlaying ? 'pauseVideo' : 'playVideo';
-    iframe.contentWindow.postMessage(JSON.stringify({
-        "event": "command",
-        "func": action,
-        "args": ""
-    }), "*");
-
+    iframe.contentWindow.postMessage(JSON.stringify({"event": "command", "func": action, "args": ""}), "*");
     isPlaying = !isPlaying;
     updatePlayStatus(isPlaying);
 }
@@ -198,56 +196,9 @@ function updatePlayStatus(playing) {
     if (icon) icon.className = playing ? 'fa-solid fa-pause' : 'fa-solid fa-play';
 }
 
-// --- לוגיקת גרירה חסינה ---
-
-const floatingPlayer = document.getElementById('floating-player');
-const dragHandle = document.getElementById('drag-handle');
-
-if (dragHandle) {
-    dragHandle.onmousedown = function(e) {
-        if (e.target.tagName === 'BUTTON') return;
-        e.preventDefault();
-        
-        const rect = floatingPlayer.getBoundingClientRect();
-        let shiftX = e.clientX - rect.left;
-        let shiftY = e.clientY - rect.top;
-
-        // שכבת מגן כדי שהעכבר לא יברח לתוך ה-iframe
-        const overlay = document.createElement('div');
-        overlay.style.position = 'absolute';
-        overlay.style.top = '30px';
-        overlay.style.left = '0';
-        overlay.style.width = '100%';
-        overlay.style.height = '100%';
-        overlay.style.zIndex = '1000';
-        floatingPlayer.appendChild(overlay);
-
-        function moveAt(pageX, pageY) {
-            floatingPlayer.style.left = pageX - shiftX + 'px';
-            floatingPlayer.style.top = pageY - shiftY + 'px';
-            floatingPlayer.style.bottom = 'auto';
-        }
-
-        function onMouseMove(event) {
-            moveAt(event.clientX, event.clientY);
-        }
-
-        document.addEventListener('mousemove', onMouseMove);
-        document.onmouseup = function() {
-            document.removeEventListener('mousemove', onMouseMove);
-            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-            document.onmouseup = null;
-        };
-    };
-    dragHandle.ondragstart = function() { return false; };
-}
-
-// --- מועדפים והיסטוריה ---
-
 async function toggleFavorite(videoId) {
     if (!currentUser) return alert("עליך להתחבר כדי להוסיף למועדפים");
     const isFav = userFavorites.includes(videoId);
-    
     if (isFav) {
         await client.from('favorites').delete().eq('user_id', currentUser.id).eq('video_id', videoId);
         userFavorites = userFavorites.filter(id => id !== videoId);
@@ -255,29 +206,20 @@ async function toggleFavorite(videoId) {
         await client.from('favorites').insert([{ user_id: currentUser.id, video_id: videoId }]);
         userFavorites.push(videoId);
     }
-    
     const icon = document.getElementById(`fav-icon-${videoId}`);
     if (icon) icon.className = userFavorites.includes(videoId) ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
 }
 
 async function loadSidebarLists() {
     if (!currentUser) return;
-    
-    const { data: hist, error } = await client
-        .from('history')
-        .select('video_id, videos(id, title, channel_title)')
-        .eq('user_id', currentUser.id)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-    if (hist && !error) {
+    const { data: hist } = await client.from('history').select('video_id, videos(id, title, channel_title)').eq('user_id', currentUser.id).order('created_at', { ascending: false }).limit(10);
+    if (hist) {
         const sidebarList = document.getElementById('favorites-list');
         sidebarList.innerHTML = hist.map(h => {
             if (!h.videos) return '';
-            const safeTitle = cleanForJS(h.videos.title);
-            const safeChannel = cleanForJS(h.videos.channel_title);
+            const videoData = JSON.stringify({id: h.videos.id, title: cleanForJS(h.videos.title), channel: cleanForJS(h.videos.channel_title)}).replace(/"/g, '&quot;');
             return `
-                <div class="nav-link" onclick="playVideo('${h.videos.id}', '${safeTitle}', '${safeChannel}')">
+                <div class="nav-link" onclick='preparePlay(${videoData})'>
                     <i class="fa-solid fa-clock-rotate-left"></i>
                     <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(h.videos.title)}</span>
                 </div>`;
