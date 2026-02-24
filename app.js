@@ -7,12 +7,14 @@ let userFavorites = [];
 let debounceTimeout = null;
 let isPlaying = false;
 
-// פונקציית עזר לניקוי תווים מיוחדים לפני שליחה ל-FTS
+// --- פונקציות עזר ותיקון תווים ---
+
+// ניקוי שאילתה לפני שליחה ל-FTS למניעת קריסה
 function cleanFtsQuery(query) {
     return query.replace(/[^\w\sא-ת]/g, ' ').trim();
 }
 
-// פונקציה שמגינה על טקסט מפני שבירת HTML ו-JS
+// הגנה על טקסט שמוזרק לתוך HTML ו-JS (מונע SyntaxError בגלל גרשים)
 function escapeHtml(text) {
     if (!text) return "";
     return text
@@ -22,6 +24,8 @@ function escapeHtml(text) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#39;");
 }
+
+// --- ניהול משתמש ואתחול ---
 
 async function init() {
     const { data: { user } } = await client.auth.getUser();
@@ -39,7 +43,7 @@ async function init() {
 function updateUserUI() {
     const userDiv = document.getElementById('user-profile');
     if (currentUser && userDiv && currentUser.user_metadata) {
-        const avatar = currentUser.user_metadata.avatar_url || ""; // מניעת שגיאת null
+        const avatar = currentUser.user_metadata.avatar_url || ""; // תיקון שגיאת 404 null
         userDiv.innerHTML = `
             <div style="display:flex; align-items:center; gap:10px;">
                 ${avatar ? `<img src="${avatar}" style="width:35px; border-radius:50%; border: 2px solid #1DB954;">` : ''}
@@ -54,6 +58,8 @@ function updateUserUI() {
 
 async function logout() { await client.auth.signOut(); window.location.reload(); }
 
+// --- מערכת חיפוש ותרגום ---
+
 async function fetchVideos(query = "") {
     const rawQuery = query.trim();
     if (!rawQuery) {
@@ -63,6 +69,7 @@ async function fetchVideos(query = "") {
     }
 
     const cleanQuery = cleanFtsQuery(rawQuery);
+    // שימוש ב-FTS בלבד כפי שביקשת
     const { data } = await client.rpc('search_videos_prioritized', { search_term: cleanQuery });
     renderVideoGrid(data || []);
 
@@ -84,20 +91,21 @@ async function getTranslation(text) {
     } catch (e) { return null; }
 }
 
+// --- רינדור תצוגה ---
+
 function renderVideoGrid(data, append = false) {
     const grid = document.getElementById('videoGrid');
     if (!grid || !data) return;
     
     const html = data.map(v => {
         const isFav = userFavorites.includes(v.id);
-        const vId = v.id;
         const vTitle = escapeHtml(v.title);
         const vChannel = escapeHtml(v.channel_title);
         const vDesc = escapeHtml(v.description);
 
-        // שימוש בגרש נטוי בתוך ה-onclick למניעת SyntaxError
+        // תיקון: החלפת גרשים בגרש נטוי בתוך ה-onclick למניעת Syntax Error
         return `
-            <div class="v-card" onclick="playVideo('${vId}', '${vTitle.replace(/'/g, "\\'")}', '${vChannel.replace(/'/g, "\\'")}')">
+            <div class="v-card" onclick="playVideo('${v.id}', '${vTitle.replace(/'/g, "\\'")}', '${vChannel.replace(/'/g, "\\'")}')">
                 <div class="card-img-container">
                     <img src="${v.thumbnail}" loading="lazy">
                     <div class="video-description-overlay">${vDesc}</div>
@@ -105,8 +113,8 @@ function renderVideoGrid(data, append = false) {
                 <h3>${v.title}</h3>
                 <div class="card-footer">
                     <span>${v.channel_title}</span>
-                    <button class="fav-btn" onclick="event.stopPropagation(); toggleFavorite('${vId}')">
-                        <i class="${isFav ? 'fa-solid' : 'fa-regular'} fa-heart" id="fav-icon-${vId}"></i>
+                    <button class="fav-btn" onclick="event.stopPropagation(); toggleFavorite('${v.id}')">
+                        <i class="${isFav ? 'fa-solid' : 'fa-regular'} fa-heart" id="fav-icon-${v.id}"></i>
                     </button>
                 </div>
             </div>
@@ -115,11 +123,14 @@ function renderVideoGrid(data, append = false) {
     grid.innerHTML = append ? grid.innerHTML + html : html;
 }
 
+// --- נגן וידאו (טעינה ישירה ומהירה) ---
+
 function playVideo(id, title, channel) {
     const playerWin = document.getElementById('floating-player');
     const container = document.getElementById('youtubePlayer');
     
-    playerWin.style.display = 'flex'; // התאמה ל-CSS החדש
+    playerWin.style.display = 'flex'; 
+    // טעינה ישירה ללא בדיקות API מיותרות לשיפור המהירות
     container.innerHTML = `
         <iframe src="https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1" 
                 frameborder="0" allow="autoplay; encrypted-media" allowfullscreen 
@@ -150,7 +161,8 @@ function updatePlayStatus(playing) {
     if (icon) icon.className = playing ? 'fa-solid fa-pause' : 'fa-solid fa-play';
 }
 
-// לוגיקת גרירה
+// --- לוגיקת גרירת חלון ---
+
 const floatingPlayer = document.getElementById('floating-player');
 const dragHandle = document.getElementById('drag-handle');
 
@@ -174,7 +186,10 @@ if (dragHandle) {
             document.onmouseup = null;
         };
     };
+    dragHandle.ondragstart = function() { return false; };
 }
+
+// --- מועדפים והיסטוריה ---
 
 async function toggleFavorite(videoId) {
     if (!currentUser) return alert("התחבר קודם");
