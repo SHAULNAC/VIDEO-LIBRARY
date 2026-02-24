@@ -210,8 +210,7 @@ function preparePlay(encodedData) {
         container.innerHTML = `
             <div id="player-loader" class="player-loader">
                 <i class="fa-solid fa-play"></i>
-                <p style="font-size:12px; margin-top:10px;">טוען סרטון...</p>
-            </div>
+                </div>
             <iframe id="yt-iframe" 
                 src="https://www.youtube-nocookie.com/embed/${data.id}?${videoParams.toString()}" 
                 frameborder="0" 
