@@ -43,51 +43,35 @@ function formatDuration(isoDuration) {
 // --- אתחול ---
 
 async function init() {
-    try {
-        // 1. בדיקת סטטוס התחברות
-        const { data: { user } } = await client.auth.getUser();
-        currentUser = user;
-        updateUserUI();
-        
-        // 2. הגדרת הסרגל התחתון למצב מוסתר בהפעלה ראשונית
-        const playerBar = document.getElementById('main-player-bar');
-        if (playerBar) {
-            playerBar.classList.add('hidden-player');
+    // 1. בדיקת משתמש נוכחי בטעינת הדף
+    const { data: { user } } = await client.auth.getUser();
+    currentUser = user; [cite: 1]
+    
+    // 2. האזנה לשינויים בזמן אמת (כניסה/יציאה של משתמש)
+    client.auth.onAuthStateChange((event, session) => {
+        currentUser = session?.user || null; [cite: 1]
+        updateUserUI(); [cite: 1]
+        if (currentUser) {
+            loadSidebarLists(); [cite: 1]
         }
+    });
 
-        // 3. טעינת נתוני משתמש אם מחובר
-        if (user) {
-            // טעינת מועדפים
-            const { data: favs, error: favError } = await client.from('favorites')
-                .select('video_id')
-                .eq('user_id', user.id);
-            
-            if (!favError) {
-                userFavorites = favs ? favs.map(f => f.video_id) : [];
-            }
-
-            // טעינת רשימות בסיידבר (היסטוריה/מועדפים)
-            if (typeof loadSidebarLists === 'function') {
-                loadSidebarLists();
-            }
-        }
-
-        // 4. טעינת סרטונים לגריד הראשי
-        await fetchVideos();
-
-        // 5. אתחול פונקציות עזר (גרירה ושינוי גודל)
-        if (typeof initDraggable === 'function') {
-            initDraggable();
-        }
-        
-        // אתחול פונקציית שינוי הגודל (Resizer) אם קיימת
-        if (typeof initResizer === 'function') {
-            initResizer();
-        }
-
-    } catch (err) {
-        console.error("Initialization failed:", err);
+    // 3. עדכון ממשק המשתמש הראשוני
+    updateUserUI(); [cite: 1]
+    
+    // 4. אם המשתמש מחובר, שליפת המועדפים שלו וטעינת רשימות הצד
+    if (user) {
+        const { data: favs } = await client.from('favorites').select('video_id').eq('user_id', user.id); [cite: 1]
+        userFavorites = favs ? favs.map(f => f.video_id) : []; [cite: 1]
+        loadSidebarLists(); [cite: 1]
     }
+
+    // 5. טעינת הסרטונים הכללית למסך
+    fetchVideos(); [cite: 1]
+
+    // 6. הפעלת יכולות אינטראקציה לנגן (גרירה ושינוי גודל)
+    initDraggable(); [cite: 1]
+    initResizer(); // הפונקציה החדשה שהוספנו בשלב הקודם
 }
 
 function updateUserUI() {
@@ -117,28 +101,7 @@ async function login() {
 }
 
 // עדכון פונקציית ה-init כדי להאזין לשינויי התחברות
-async function init() {
-    // בדיקת משתמש נוכחי
-    const { data: { user } } = await client.auth.getUser();
-    currentUser = user;
-    
-    // האזנה לשינויים (כניסה/יציאה)
-    client.auth.onAuthStateChange((event, session) => {
-        currentUser = session?.user || null;
-        updateUserUI();
-        if (currentUser) loadSidebarLists();
-    });
 
-    updateUserUI();
-    
-    if (user) {
-        const { data: favs } = await client.from('favorites').select('video_id').eq('user_id', user.id);
-        userFavorites = favs ? favs.map(f => f.video_id) : [];
-        loadSidebarLists();
-    }
-    fetchVideos();
-    initDraggable();
-}
 async function logout() { await client.auth.signOut(); window.location.reload(); }
 
 // --- חיפוש ---
