@@ -9,7 +9,8 @@ let isPlaying = false;
 
 // פונקציה לניקוי תווים מיוחדים לפני שליחה ל-FTS
 function cleanFtsQuery(query) {
-    return query.replace(/[!@#$%^&*(),.?":{}|<>]/g, '').trim();
+    // מסיר כל תו שאינו אות, מספר או רווח כדי להגן על ה-DB
+    return query.replace(/[^\w\sא-ת]/g, ' ').trim();
 }
 
 // פונקציה לטיפול בגרשים בטקסט שמוזרק ל-HTML
@@ -119,26 +120,16 @@ function playVideo(id, title, channel) {
     const playerWin = document.getElementById('floating-player');
     const container = document.getElementById('youtubePlayer');
     
-    playerWin.style.display = 'block';
-    // טעינה ישירה ללא בדיקות מקדימות למהירות מקסימלית
-    container.innerHTML = `
-        <iframe id="yt-iframe" 
-                src="https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1" 
-                frameborder="0" 
-                allow="autoplay; encrypted-media" 
-                allowfullscreen
-                style="width: 100%; height: 100%; display: block;">
-        </iframe>`;
+    playerWin.style.display = 'flex'; // וודא שזה flex לפי ה-CSS החדש
+    container.innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen style="width:100%; height:100%;"></iframe>`;
     
     document.getElementById('current-title').innerText = title;
     document.getElementById('current-channel').innerText = channel;
-    isPlaying = true;
-    updatePlayStatus(true);
-
-    if (currentUser) {
+     if (currentUser) {
         client.from('history').upsert({ user_id: currentUser.id, video_id: id, created_at: new Date() });
     }
 }
+   
 
 function togglePlayPause() {
     const iframe = document.getElementById('yt-iframe');
