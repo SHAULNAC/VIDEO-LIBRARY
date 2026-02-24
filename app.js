@@ -7,10 +7,15 @@ let userFavorites = [];
 let debounceTimeout = null;
 let isPlaying = false;
 
-// פונקציית עזר לניקוי גרשים ותווים מיוחדים
-function escapeHtml(text) {
-    if (!text) return "";
-    return text.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+// פונקציה לניקוי תווים מיוחדים לפני שליחה ל-FTS
+function cleanFtsQuery(query) {
+    return query.replace(/[!@#$%^&*(),.?":{}|<>]/g, '').trim();
+}
+
+// פונקציה לטיפול בגרשים בטקסט שמוזרק ל-HTML
+function safeStr(str) {
+    if (!str) return "";
+    return str.replace(/'/g, "\\'");
 }
 
 async function init() {
@@ -41,61 +46,62 @@ function updateUserUI() {
     }
 }
 
-async function login() { await client.auth.signInWithOAuth({ provider: 'google' }); }
 async function logout() { await client.auth.signOut(); window.location.reload(); }
 
-async function getTranslation(text) {
-    const cleanText = text.trim().toLowerCase();
-    try {
-        const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=iw&tl=en&dt=t&q=${encodeURI(cleanText)}`);
-        const data = await res.json();
-        return data[0][0][0];
-    } catch (e) { return null; }
-}
-
 async function fetchVideos(query = "") {
-    const searchQuery = query.trim();
-    if (!searchQuery) {
+    const rawQuery = query.trim();
+    if (!rawQuery) {
         const { data } = await client.from('videos').select('*').order('published_at', { ascending: false });
         renderVideoGrid(data);
         return;
     }
 
-    // חיפוש FTS ראשוני
-    const { data, error } = await client.rpc('search_videos_prioritized', { search_term: searchQuery });
-    if (!error) renderVideoGrid(data);
+    const cleanQuery = cleanFtsQuery(rawQuery);
+    
+    // חיפוש FTS ישיר
+    const { data } = await client.rpc('search_videos_prioritized', { search_term: cleanQuery });
+    renderVideoGrid(data || []);
 
+    // תרגום וחיפוש נוסף
     clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(async () => {
-        const translated = await getTranslation(searchQuery);
-        if (translated && translated.toLowerCase() !== searchQuery.toLowerCase()) {
-            const { data: transData } = await client.rpc('search_videos_prioritized', { search_term: translated });
+        const translated = await getTranslation(cleanQuery);
+        if (translated && translated.toLowerCase() !== cleanQuery.toLowerCase()) {
+            const { data: transData } = await client.rpc('search_videos_prioritized', { search_term: cleanFtsQuery(translated) });
             if (transData) renderVideoGrid(transData, true);
         }
     }, 800);
 }
 
+async function getTranslation(text) {
+    try {
+        const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=iw&tl=en&dt=t&q=${encodeURI(text)}`);
+        const data = await res.json();
+        return data[0][0][0];
+    } catch (e) { return null; }
+}
+
 function renderVideoGrid(data, append = false) {
     const grid = document.getElementById('videoGrid');
-    if (!grid || !data) return;
+    if (!grid) return;
     
     const html = data.map(v => {
         const isFav = userFavorites.includes(v.id);
-        const safeTitle = escapeHtml(v.title);
-        const safeChannel = escapeHtml(v.channel_title);
-        const safeDesc = escapeHtml(v.description);
+        const title = safeStr(v.title);
+        const channel = safeStr(v.channel_title);
+        const desc = safeStr(v.description);
 
         return `
-            <div class="v-card" onclick="playVideo('${v.id}', '${safeTitle}', '${safeChannel}')">
+            <div class="v-card" onclick="playVideo('${v.id}', '${title}', '${channel}')">
                 <div class="card-img-container">
                     <img src="${v.thumbnail}" loading="lazy">
-                    <div class="video-description-overlay">${safeDesc}</div>
+                    <div class="video-description-overlay">${desc}</div>
                 </div>
                 <h3>${v.title}</h3>
                 <div class="card-footer">
                     <span>${v.channel_title}</span>
                     <button class="fav-btn" onclick="event.stopPropagation(); toggleFavorite('${v.id}')">
-                        <i class="${isFav ? 'fa-solid' : 'fa-regular'} fa-heart" id="fav-icon-${v.id}"></i>
+                        <i class="${isFav ? 'fa-solid' : 'fa-heart'} fa-heart" id="fav-icon-${v.id}"></i>
                     </button>
                 </div>
             </div>
@@ -109,14 +115,14 @@ function playVideo(id, title, channel) {
     const container = document.getElementById('youtubePlayer');
     
     playerWin.style.display = 'block';
-    // עיצוב ה-iframe למניעת חיתוך בתחתית
+    // טעינה ישירה ללא בדיקות מקדימות למהירות מקסימלית
     container.innerHTML = `
         <iframe id="yt-iframe" 
-                src="https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1&rel=0" 
-                style="width:100%; height:100%; min-height:200px; display:block;"
+                src="https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1" 
                 frameborder="0" 
                 allow="autoplay; encrypted-media" 
-                allowfullscreen>
+                allowfullscreen
+                style="width: 100%; height: 100%; display: block;">
         </iframe>`;
     
     document.getElementById('current-title').innerText = title;
@@ -147,28 +153,25 @@ function updatePlayStatus(playing) {
 const floatingPlayer = document.getElementById('floating-player');
 const dragHandle = document.getElementById('drag-handle');
 
-if (dragHandle) {
-    dragHandle.onmousedown = function(e) {
-        e.preventDefault();
-        const rect = floatingPlayer.getBoundingClientRect();
-        let shiftX = e.clientX - rect.left;
-        let shiftY = e.clientY - rect.top;
+dragHandle.onmousedown = function(e) {
+    e.preventDefault();
+    const rect = floatingPlayer.getBoundingClientRect();
+    let shiftX = e.clientX - rect.left;
+    let shiftY = e.clientY - rect.top;
 
-        function moveAt(pageX, pageY) {
-            floatingPlayer.style.left = pageX - shiftX + 'px';
-            floatingPlayer.style.top = pageY - shiftY + 'px';
-            floatingPlayer.style.bottom = 'auto';
-        }
+    function moveAt(pageX, pageY) {
+        floatingPlayer.style.left = pageX - shiftX + 'px';
+        floatingPlayer.style.top = pageY - shiftY + 'px';
+        floatingPlayer.style.bottom = 'auto';
+    }
 
-        function onMouseMove(event) { moveAt(event.clientX, event.clientY); }
-        document.addEventListener('mousemove', onMouseMove);
-        document.onmouseup = function() {
-            document.removeEventListener('mousemove', onMouseMove);
-            document.onmouseup = null;
-        };
+    function onMouseMove(event) { moveAt(event.clientX, event.clientY); }
+    document.addEventListener('mousemove', onMouseMove);
+    document.onmouseup = function() {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.onmouseup = null;
     };
-    dragHandle.ondragstart = function() { return false; };
-}
+};
 
 async function toggleFavorite(videoId) {
     if (!currentUser) return alert("התחבר קודם");
@@ -189,7 +192,7 @@ async function loadSidebarLists() {
     const { data: hist } = await client.from('history').select('video_id, videos(id, title)').eq('user_id', currentUser.id).limit(10).order('created_at', {ascending: false});
     if (hist) {
         document.getElementById('favorites-list').innerHTML = hist.map(h => h.videos ? `
-            <div class="nav-link" onclick="playVideo('${h.videos.id}', '${escapeHtml(h.videos.title)}', '')">
+            <div class="nav-link" onclick="playVideo('${h.videos.id}', '${safeStr(h.videos.title)}', '')">
                 <i class="fa-solid fa-clock-rotate-left"></i> ${h.videos.title}
             </div>` : '').join('');
     }
