@@ -16,18 +16,12 @@
                 <button class="btn-login" onclick="login()">התחבר עם Google</button>
             </div>
             <div class="nav-link active" onclick="location.reload()"><i class="fa-solid fa-house"></i> בית</div>
-            <div class="nav-link"><i class="fa-solid fa-magnifying-glass"></i> חיפוש</div>
-            <div id="searchSpinner" style="display: none;" class="spinner">מחפש...</div>
+            <div class="nav-link" onclick="document.getElementById('globalSearch').focus()"><i class="fa-solid fa-magnifying-glass"></i> חיפוש</div>
         </div>
 
         <div class="nav-card library">
-            <div class="library-header"><i class="fa-solid fa-heart" style="color: #1DB954;"></i> המועדפים שלך</div>
+            <div class="library-header"><i class="fa-solid fa-heart" style="color: #1DB954;"></i> המועדפים</div>
             <div id="favorites-list" class="sidebar-list"></div>
-        </div>
-
-        <div class="nav-card library">
-            <div class="library-header"><i class="fa-solid fa-clock-rotate-left"></i> היסטוריית צפייה</div>
-            <div id="history-list" class="sidebar-list"></div>
         </div>
     </aside>
 
@@ -35,19 +29,20 @@
         <header class="top-nav">
             <div class="search-bar">
                 <i class="fa-solid fa-magnifying-glass"></i>
-                <input type="text" id="globalSearch" placeholder="מה תרצה לראות?">
+                <input type="text" id="globalSearch" placeholder="חפש סרטונים...">
             </div>
         </header>
 
         <section id="gallery-container">
             <h2 id="main-title">הסרטונים שלך</h2>
-            <div class="video-grid" id="videoGrid"></div>
+            <div class="video-grid" id="videoGrid">
+                </div>
         </section>
     </main>
 
     <div id="floating-player" class="floating-window">
         <div class="window-header" id="drag-handle">
-            <span class="drag-dots">⋮⋮⋮</span>
+            <span class="drag-dots">⋮⋮⋮ גרירה</span>
         </div>
         <div id="youtubePlayer"></div>
         <div class="resizer" id="resizer"></div>
@@ -59,7 +54,6 @@
                 <p id="current-title" style="font-weight: bold; margin: 0; font-size: 14px;">בחר סרטון...</p>
                 <div class="video-meta-sub">
                     <span id="current-channel"></span>
-                    <span id="current-date" style="margin-right: 10px; opacity: 0.6;"></span>
                 </div>
             </div>
         </div>
