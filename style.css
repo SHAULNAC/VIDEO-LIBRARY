@@ -12,255 +12,76 @@ body {
     background-color: var(--black); color: var(--text-white);
     display: grid; grid-template-columns: 260px 1fr;
     grid-template-rows: 1fr 90px; height: 100vh;
+    overflow: hidden;
 }
 
-/* Sidebar & Nav */
+/* Sidebar */
 .sidebar { padding: 10px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
 .nav-card { background: var(--dark-grey); border-radius: 8px; padding: 15px; }
-.nav-link { padding: 10px; cursor: pointer; color: var(--text-dim); display: flex; align-items: center; gap: 12px; font-weight: bold; font-size: 13px; }
+.nav-link { padding: 10px; cursor: pointer; color: var(--text-dim); display: flex; align-items: center; gap: 12px; font-weight: bold; font-size: 13px; transition: 0.2s; }
 .nav-link:hover { color: white; }
+.sidebar-list { margin-top: 10px; max-height: 200px; overflow-y: auto; }
 
 /* Content Area */
 .content { background: linear-gradient(to bottom, #222, var(--black)); overflow-y: auto; padding: 20px; }
 .search-bar { background: white; border-radius: 50px; padding: 8px 20px; display: flex; align-items: center; width: 300px; margin-bottom: 20px; }
-.search-bar input { border: none; outline: none; width: 100%; margin-left: 10px; color: #000; }
+.search-bar input { border: none; outline: none; width: 100%; margin-right: 10px; color: #000; font-size: 14px; }
 
-/* Video Grid - הגדרת קוביות קטנות ואחידות */
+/* Video Grid */
 #videoGrid {
-    display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important;
-    gap: 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 20px;
     width: 100%;
 }
 
-/* כרטיסיית סרטון */
 .v-card {
-    background: var(--light-grey);
-    padding: 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    height: 100%; /* שומר על גובה אחיד בשורה */
-    position: relative;
-    transition: 0.3s;
+    background: var(--light-grey); padding: 12px; border-radius: 8px; cursor: pointer;
+    display: flex; flex-direction: column; height: 100%; position: relative; transition: 0.3s;
 }
 .v-card:hover { background: #282828; }
 
-/* מיכל התמונה - העוגן של התיאור המרחף */
-.card-img-container {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 16/9;
-    border-radius: 4px;
-    overflow: hidden;
-}
-.v-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.card-img-container { position: relative; width: 100%; aspect-ratio: 16/9; border-radius: 4px; overflow: hidden; }
+.v-card img { width: 100%; height: 100%; object-fit: cover; }
 
-/* התיקון למריחה: התיאור צף (Absolute) מעל התמונה */
 .video-description-overlay {
-    position: absolute !important;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0, 0, 0, 0.85);
-    color: #eee;
-    font-size: 11px;
-    padding: 10px;
-    opacity: 0;
-    transition: 0.3s;
-    overflow-y: auto;
-    pointer-events: none; /* מאפשר לחיצה על הסרטון */
-    z-index: 5;
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.85); color: #eee; font-size: 11px;
+    padding: 10px; opacity: 0; transition: 0.3s; overflow-y: auto; pointer-events: none; z-index: 5;
 }
 .v-card:hover .video-description-overlay { opacity: 1; }
 
-/* כותרת קבועה - מונע קפיצות בגריד */
 .v-card h3 {
-    font-size: 13px;
-    margin: 10px 0 5px 0;
-    height: 2.6em; /* בדיוק 2 שורות */
-    line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    color: var(--text-white);
+    font-size: 13px; margin: 10px 0 5px 0; height: 2.6em; line-height: 1.3;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 
-.card-footer {
-    margin-top: auto;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 11px;
-    color: var(--text-dim);
+.card-footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--text-dim); }
+
+/* Floating Player */
+.floating-window {
+    position: fixed; bottom: 100px; left: 20px; width: 350px; height: 230px;
+    background: #000; border-radius: 12px; overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8); z-index: 9999; display: none; border: 1px solid #333;
 }
 
-/* כפתור לב */
-.fav-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; }
-.fa-solid.fa-heart { color: var(--spotify-green); }
+.window-header { height: 30px; background: #181818; cursor: move; display: flex; justify-content: center; align-items: center; color: #b3b3b3; }
+#youtubePlayer { width: 100%; height: calc(100% - 30px); }
+
+.resizer {
+    width: 15px; height: 15px; position: absolute; right: 0; bottom: 0;
+    cursor: nwse-resize; z-index: 10;
+}
 
 /* Player Bar */
-.player-bar { grid-column: span 2; background: black; border-top: 1px solid #282828; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; }
-.iframe-wrapper { width: 400px; height: 70px; border-radius: 8px; overflow: hidden; }
-.floating-window {
-    position: fixed;
-    bottom: 100px;
-    left: 20px;
-    width: 320px;
-    background: var(--dark-grey);
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    z-index: 1000;
-    display: none; /* יופיע רק כשמפעילים סרטון */
-}
-
-.window-header {
-    height: 30px;
-    background: #282828;
-    cursor: move;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: var(--text-dim);
-}
-
-.video-container {
-    position: relative;
-    padding-bottom: 56.25%; /* יחס 16:9 */
-    height: 0;
-}
-
-.video-container iframe {
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    border: none;
-}
-
-.resizer {
-    width: 15px; height: 15px;
-    background: transparent;
-    position: absolute;
-    right: 0; top: 0;
-    cursor: nwse-resize;
-}
-
-.player-bar button {
-    background: white; border: none; border-radius: 50%;
-    width: 35px; height: 35px; cursor: pointer;
-}
-/* חלון צף */
-.floating-window {
-    position: fixed;
-    bottom: 110px;
-    right: 20px; /* שינוי לימין בגלל RTL */
-    width: 350px;
-    background: #000;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-    z-index: 9999;
-    display: none;
-    border: 1px solid #333;
-}
-
-.window-header {
-    height: 35px;
-    background: #181818;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 10px;
-    cursor: move;
-}
-
-.drag-dots { color: var(--text-dim); letter-spacing: 2px; }
-
-.resizer {
-    position: absolute;
-    left: 0; top: 0; width: 15px; height: 15px;
-    cursor: nwse-resize;
-}
-
-/* פקדים בתחתית */
 .player-bar {
-    display: grid;
-    grid-template-columns: 1fr 2fr 1fr;
-    padding: 0 25px;
+    grid-column: span 2; background: black; border-top: 1px solid #282828;
+    display: grid; grid-template-columns: 1fr 2fr 1fr; align-items: center; padding: 0 20px;
 }
 
-.video-meta-sub { font-size: 11px; color: var(--text-dim); display: flex; gap: 10px; }
-
-.main-play-btn {
-    background: white; border: none; border-radius: 50%;
-    width: 38px; height: 38px; cursor: pointer; transition: 0.2s;
-}
-
+.player-center { display: flex; flex-direction: column; align-items: center; }
+.main-play-btn { background: white; border: none; border-radius: 50%; width: 38px; height: 38px; cursor: pointer; transition: 0.2s; margin-bottom: 4px; }
 .main-play-btn:hover { transform: scale(1.05); }
 
-.bottom-desc {
-    font-size: 12px; color: var(--text-dim);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    max-width: 400px; margin-top: 5px;
-}
-.floating-window {
-    position: fixed;
-    bottom: 110px;
-    left: 20px;
-    width: 350px;
-    min-width: 200px;
-    min-height: 150px;
-    background: #000;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-    z-index: 9999;
-    display: none;
-    border: 1px solid #333;
-}
-
-/* ידית שינוי גודל בפינה הימנית העליונה (בגלל RTL) או השמאלית */
-.resizer {
-    width: 15px;
-    height: 15px;
-    background: transparent;
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    cursor: nwse-resize;
-    z-index: 10;
-}
-
-.window-header {
-    height: 30px;
-    background: #181818;
-    cursor: move;
-    display: flex;
-    justify-content: center;
-    color: #b3b3b3;
-}
-
-.player-bar {
-    display: grid;
-    grid-template-columns: 1fr 2fr 1fr;
-    align-items: center;
-}
-
-.main-play-btn {
-    background: white;
-    border: none;
-    border-radius: 50%;
-    width: 35px;
-    height: 35px;
-    cursor: pointer;
-    margin-bottom: 5px;
-}
-
-.bottom-desc {
-    font-size: 11px;
-    color: #b3b3b3;
-    max-width: 300px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
+.bottom-desc { font-size: 11px; color: var(--text-dim); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px; }
+.video-meta-sub { font-size: 11px; color: var(--text-dim); }
