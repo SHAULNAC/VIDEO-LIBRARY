@@ -11,7 +11,6 @@
 body {
     font-family: 'Assistant', sans-serif;
     margin: 0; 
-    font-family: 'Segoe UI', Tahoma, sans-serif;
     background-color: var(--black); 
     color: var(--text-white);
     display: grid; 
