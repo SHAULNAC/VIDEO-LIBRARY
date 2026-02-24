@@ -182,79 +182,79 @@ function renderVideoGrid(data, append = false) {
 
 function preparePlay(encodedData) {
     try {
+        // 1. פיענוח הנתונים
         const data = JSON.parse(decodeURIComponent(atob(encodedData)));
-        playVideo(data);
-    } catch (e) { 
-        console.error("Error decoding video data:", e); 
-    }
-}
+        
+        const playerWin = document.getElementById('floating-player');
+        const playerBar = document.getElementById('main-player-bar'); 
+        const container = document.getElementById('youtubePlayer');
+        
+        if (!playerWin || !container) return;
 
-function playVideo(data) {
-    const playerWin = document.getElementById('floating-player');
-    const playerBar = document.getElementById('main-player-bar'); 
-    const container = document.getElementById('youtubePlayer');
-    
-    if (!playerWin || !container) return;
+        // 2. הצגת ממשק הנגן
+        playerWin.style.display = 'flex'; 
+        if (playerBar) {
+            playerBar.classList.remove('hidden-player');
+            playerBar.classList.add('show-player');
+        }
 
-    playerWin.style.display = 'flex'; 
-
-    if (playerBar) {
-        playerBar.classList.remove('hidden-player');
-        playerBar.classList.add('show-player');
-    }
-
-    const videoParams = new URLSearchParams({
-        autoplay: 1,
-        enablejsapi: 1,
-        rel: 0,
-        iv_load_policy: 3, 
-        disablekb: 1,
-        showinfo: 0,
-        controls: 1,
-        origin: window.location.origin,
-        widget_referrer: 'https://www.youtube.com'
-    });
-
-    container.innerHTML = `
-        <iframe id="yt-iframe" 
-                src="https://www.youtube-nocookie.com/embed/${data.id}?${videoParams.toString()}" 
-                frameborder="0" 
-                allow="autoplay; encrypted-media; picture-in-picture" 
-                allowfullscreen>
-        </iframe>`;
-    
-    document.getElementById('current-title').textContent = data.t || "";
-    document.getElementById('current-channel').textContent = data.c || "";
-    
-    const catElem = document.getElementById('current-category');
-    if (catElem) catElem.textContent = data.cat || "כללי";
-    
-    const durationElem = document.getElementById('video-duration');
-    if (durationElem) durationElem.textContent = formatDuration(data.d);
-    
-    if (document.getElementById('stat-views')) 
-        document.getElementById('stat-views').innerHTML = `<i class="fa-solid fa-eye"></i> ${data.v}`;
-    
-    if (document.getElementById('stat-likes')) 
-        document.getElementById('stat-likes').innerHTML = `<i class="fa-solid fa-thumbs-up"></i> ${data.l}`;
-    
-    const descElem = document.getElementById('bottom-description');
-    if (descElem && data.desc) {
-        descElem.textContent = data.desc;
-    }
-
-   
-
-    if (currentUser) {
-        client.from('history').upsert([
-            { user_id: currentUser.id, video_id: data.id, created_at: new Date() }
-        ]).then(() => {
-            loadSidebarLists();
+        // 3. הגדרות ה-URL של יוטיוב (כולל אופטימיזציה)
+        const videoParams = new URLSearchParams({
+            autoplay: 1,
+            enablejsapi: 1,
+            rel: 0,
+            iv_load_policy: 3, 
+            disablekb: 1,
+            showinfo: 0,
+            controls: 1,
+            origin: window.location.origin,
+            widget_referrer: 'https://www.youtube.com'
         });
-    }
 
-    isPlaying = true;
-    updatePlayStatus(true);
+        // 4. הזרקת ה-Spinner וה-Iframe (ה-Spinner ייעלם כשהוידאו ייטען מעליו)
+        container.innerHTML = `
+            <div class="player-loader">
+                <i class="fa-solid fa-play"></i>
+            </div>
+            <iframe id="yt-iframe" 
+                    src="https://www.youtube-nocookie.com/embed/${data.id}?${videoParams.toString()}" 
+                    frameborder="0" 
+                    allow="autoplay; encrypted-media; picture-in-picture" 
+                    allowfullscreen>
+            </iframe>`;
+        
+        // 5. עדכון פרטי הוידאו ב-UI
+        document.getElementById('current-title').textContent = data.t || "";
+        document.getElementById('current-channel').textContent = data.c || "";
+        
+        const catElem = document.getElementById('current-category');
+        if (catElem) catElem.textContent = data.cat || "כללי";
+        
+        if (document.getElementById('stat-views')) 
+            document.getElementById('stat-views').innerHTML = `<i class="fa-solid fa-eye"></i> ${data.v}`;
+        
+        if (document.getElementById('stat-likes')) 
+            document.getElementById('stat-likes').innerHTML = `<i class="fa-solid fa-thumbs-up"></i> ${data.l}`;
+        
+        const descElem = document.getElementById('bottom-description');
+        if (descElem) descElem.textContent = data.desc || "";
+
+        // 6. עדכון מצב נגינה
+        isPlaying = true;
+        updatePlayStatus(true);
+
+        // 7. רישום בהיסטוריה ב-Supabase
+        if (currentUser) {
+            client.from('history').upsert([
+                { user_id: currentUser.id, video_id: data.id, created_at: new Date() }
+            ]).then(() => {
+                if (typeof loadSidebarLists === 'function') loadSidebarLists();
+            });
+        }
+
+    } catch (e) { 
+        console.error("Error in preparePlay:", e); 
+    }
 }
 
 function closePlayer() {
