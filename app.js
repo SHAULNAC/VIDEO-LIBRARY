@@ -8,9 +8,9 @@ let debounceTimeout = null;
 let isPlaying = false;
 
 const categoryMap = {
-    "1": "סרטים ואנימציה", "2": "רכבים", "10": "מוזיקה", "15": "חיות מחמד",
-    "17": "ספורט", "20": "גיימינג", "22": "אנשים ובלוגים", "23": "קומדיה",
-    "24": "בידור", "25": "חדשות ופוליטיקה", "26": "מדריכים וסטייל",
+    "1": "כללי", "2": "רכבים", "10": "כללי", "15": "חיות מחמד",
+    "17": "כללי", "20": "כללי", "22": "אנשים ובלוגים", "23": "כללי",
+    "24": "כללי", "25": "חדשות ופוליטיקה", "26": "מדריכים וסטייל",
     "27": "חינוך", "28": "מדע וטכנולוגיה"
 };
 
@@ -141,7 +141,6 @@ async function getTranslation(text) {
 
 // --- רינדור ---
 
-// חפש את פונקציית renderVideoGrid והחלף אותה בגרסה הזו:
 function renderVideoGrid(videos) {
     const grid = document.getElementById('videoGrid');
     if (!grid) return;
@@ -151,7 +150,6 @@ function renderVideoGrid(videos) {
         const title = escapeHtml(v.title);
         const channel = escapeHtml(v.channel_title);
         
-        // שימוש ב-thumbnail כפי שמופיע ב-Supabase 
         const thumbUrl = v.thumbnail; 
 
         const videoData = {
@@ -165,11 +163,9 @@ function renderVideoGrid(videos) {
         };
         const encodedData = btoa(encodeURIComponent(JSON.stringify(videoData)));
 
-        // לוגיקת לב: בדיקה האם הסרטון נמצא ברשימת המועדפים של המשתמש 
         const isFav = userFavorites.includes(videoId);
         const favIconClass = isFav ? 'fa-solid' : 'fa-regular';
 
-        // עיבוד פורמט הזמן (משתמש בפונקציית העזר formatDuration) 
         const displayDuration = v.duration ? formatDuration(v.duration) : '';
 
         return `
@@ -192,9 +188,9 @@ function renderVideoGrid(videos) {
         `;
     }).join('');
 }
+
 function preparePlay(encodedData) {
     try {
-        // 1. פיענוח נתוני הסרטון
         const data = JSON.parse(decodeURIComponent(atob(encodedData)));
         
         const playerWin = document.getElementById('floating-player');
@@ -203,7 +199,6 @@ function preparePlay(encodedData) {
         
         if (!playerWin || !container) return;
 
-        // 2. הצגת חלון הנגן עם הנפשה
         playerWin.style.display = 'flex'; 
         playerWin.style.opacity = '0';
         playerWin.style.transform = 'translateY(20px)';
@@ -216,19 +211,17 @@ function preparePlay(encodedData) {
 
         if (playerBar) {
             playerBar.classList.remove('hidden-player');
-            playerBar.classList.add('show-player'); // מחלקה שתפעיל את האנימציה מה-CSS
+            playerBar.classList.add('show-player'); 
         }
 
-        // 3. בניית כתובת ה-URL של יוטיוב
         const videoParams = new URLSearchParams({
             autoplay: 1,
             enablejsapi: 1,
             rel: 0,
-            cc_load_policy: 1, // כתוביות
+            cc_load_policy: 1, 
             origin: window.location.origin
         });
 
-        // 4. הזרקת המבנה המלא: Loader + IFrame (שרת embed רגיל)
         container.innerHTML = `
             <div id="player-loader" class="player-loader">
                 <i class="fa-solid fa-play"></i>
@@ -242,7 +235,6 @@ function preparePlay(encodedData) {
                 onload="const loader = document.getElementById('player-loader'); if(loader) loader.style.display='none'; this.style.opacity='1';">
             </iframe>`;
         
-        // 5. עדכון פרטי הטקסט בסרגל הנגן
         if (document.getElementById('current-title')) 
             document.getElementById('current-title').textContent = data.t || "ללא כותרת";
             
@@ -261,7 +253,6 @@ function preparePlay(encodedData) {
         const descElem = document.getElementById('bottom-description');
         if (descElem) descElem.textContent = data.desc || "";
 
-        // 6. עדכון להיסטוריה ב-Supabase
         if (typeof currentUser !== 'undefined' && currentUser) {
             client.from('history').upsert([
                 { user_id: currentUser.id, video_id: data.id, created_at: new Date() }
@@ -278,8 +269,15 @@ function preparePlay(encodedData) {
 function closePlayer() {
     const playerWin = document.getElementById('floating-player');
     const container = document.getElementById('youtubePlayer');
+    const playerBar = document.getElementById('main-player-bar');
+    
     if (playerWin) playerWin.style.display = 'none';
     if (container) container.innerHTML = ''; 
+    if (playerBar) {
+        playerBar.classList.remove('show-player');
+        playerBar.classList.add('hidden-player');
+    }
+    
     isPlaying = false;
     updatePlayStatus(false);
 }
@@ -297,6 +295,10 @@ function initDraggable() {
         offsetX = e.clientX - player.offsetLeft;
         offsetY = e.clientY - player.offsetTop;
         player.style.transition = 'none';
+        
+        // נטרול אירועי עכבר בתוך ה-iframe בזמן גרירה
+        const iframe = document.getElementById('yt-iframe');
+        if(iframe) iframe.style.pointerEvents = 'none';
     });
 
     document.addEventListener('mousemove', (e) => {
@@ -308,6 +310,10 @@ function initDraggable() {
 
     document.addEventListener('mouseup', () => {
         isDragging = false;
+        
+        // החזרת אירועי עכבר ל-iframe בסיום הגרירה
+        const iframe = document.getElementById('yt-iframe');
+        if(iframe) iframe.style.pointerEvents = 'auto';
     });
 }
 
@@ -320,6 +326,10 @@ function initResizer() {
         e.preventDefault();
         window.addEventListener('mousemove', resize);
         window.addEventListener('mouseup', stopResize);
+        
+        // נטרול אירועי עכבר בתוך ה-iframe בזמן שינוי גודל
+        const iframe = document.getElementById('yt-iframe');
+        if(iframe) iframe.style.pointerEvents = 'none';
     });
 
     function resize(e) {
@@ -332,6 +342,10 @@ function initResizer() {
     function stopResize() {
         window.removeEventListener('mousemove', resize);
         window.removeEventListener('mouseup', stopResize);
+        
+        // החזרת אירועי עכבר ל-iframe בסיום
+        const iframe = document.getElementById('yt-iframe');
+        if(iframe) iframe.style.pointerEvents = 'auto';
     }
 }
 
@@ -415,6 +429,7 @@ async function displayFavorites() {
     if (title) title.textContent = "מועדפים";
     if (data) renderVideoGrid(data.map(i => i.videos).filter(v => v));
 }
+
 function showPrivacy() {
     const modal = document.getElementById('privacy-modal');
     if (modal) modal.style.display = 'flex';
@@ -425,16 +440,15 @@ function closePrivacy() {
     if (modal) modal.style.display = 'none';
 }
 
-// סגירה בלחיצה מחוץ למודאל
 window.onclick = function(event) {
     const modal = document.getElementById('privacy-modal');
     if (event.target == modal) {
         closePrivacy();
     }
-}// --- אתחול ---
+}
 
-// מאזינים לאירועים
+// --- אתחול ---
+
 document.getElementById('globalSearch').addEventListener('input', (e) => fetchVideos(e.target.value));
 
-// הפעלה
 init();
