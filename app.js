@@ -413,10 +413,12 @@ window.onclick = function(event) {
     if (event.target == modal) {
         closePrivacy();
     }
-}// --- אתחול ---
+}
+// --- אתחול ---
 
 // מאזינים לאירועים
 document.getElementById('globalSearch').addEventListener('input', (e) => fetchVideos(e.target.value));
 
-הפעלה
+// קריאה לפונקציית האתחול
 init();
+
