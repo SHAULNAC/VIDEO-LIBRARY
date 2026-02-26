@@ -141,45 +141,49 @@ async function getTranslation(text) {
 
 // --- רינדור ---
 
-function renderVideoGrid(data, append = false) {
+function renderVideoGrid(videos) {
     const grid = document.getElementById('videoGrid');
-    if (!grid || !data) return;
-    
-    const html = data.map(v => {
-        const isFav = userFavorites.includes(v.id);
-        const catName = categoryMap[v.category_id] || "כללי";
+    if (!grid) return;
+
+    grid.innerHTML = videos.map(v => {
+        const videoId = v.id;
+        const title = escapeHtml(v.title);
+        const channel = escapeHtml(v.channel_title);
         
-        const vInfo = {
-            id: v.id,
+        // יצירת אובייקט נתונים עבור ה-Base64
+        const videoData = {
+            id: videoId,
             t: v.title,
             c: v.channel_title,
-            cat: catName,
-            d: v.duration || "00:00",
-            v: v.views ? v.views.toLocaleString() : "0",
-            l: v.likes ? v.likes.toLocaleString() : "0",
-            r: v.user_rating_avg ? v.user_rating_avg.toFixed(1) : "0",
-            desc: v.description || ""
+            cat: categoryMap[v.category_id] || "כללי",
+            v: v.views_count,
+            l: v.likes_count,
+            desc: v.description
         };
-        const safeData = btoa(encodeURIComponent(JSON.stringify(vInfo)));
+        const encodedData = btoa(encodeURIComponent(JSON.stringify(videoData)));
+
+        // בדיקה האם הסרטון נמצא במועדפים
+        const isFav = userFavorites.includes(videoId);
+        // אם הוא במועדפים - לב מלא (fa-solid), אם לא - לב ריק (fa-regular)
+        const favIconClass = isFav ? 'fa-solid' : 'fa-regular';
 
         return `
-            <div class="v-card" onclick="preparePlay('${safeData}')">
-                <div class="card-img-container">
-                    <img src="${v.thumbnail}" loading="lazy">
-                    <span class="duration-badge">${formatDuration(v.duration)}</span>
-                </div>
-                <h3>${escapeHtml(v.title)}</h3>
-                <div class="card-footer">
-                    <span>${escapeHtml(v.channel_title)}</span>
-                    <button class="fav-btn" onclick="event.stopPropagation(); toggleFavorite('${v.id}')">
-                        <i class="${isFav ? 'fa-solid' : 'fa-regular'} fa-heart" id="fav-icon-${v.id}"></i>
+            <div class="v-card" onclick="preparePlay('${encodedData}')">
+                <div class="v-thumb">
+                    <img src="${v.thumbnail_url}" alt="${title}" loading="lazy">
+                    <span class="v-duration">${v.duration || ''}</span>
+                    <button class="fav-btn" onclick="event.stopPropagation(); toggleFavorite('${videoId}')">
+                        <i class="${favIconClass} fa-heart" id="fav-icon-${videoId}"></i>
                     </button>
                 </div>
-            </div>`;
+                <div class="v-info">
+                    <h3 title="${title}">${title}</h3>
+                    <p>${channel}</p>
+                </div>
+            </div>
+        `;
     }).join('');
-    grid.innerHTML = append ? grid.innerHTML + html : html;
 }
-
 function preparePlay(encodedData) {
     try {
         // 1. פיענוח נתוני הסרטון
