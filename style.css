@@ -11,7 +11,7 @@
 
 *, body, button, input, select, textarea {
     font-family: 'Rubik', sans-serif;
-    box-sizing: border-box; /* מבטיח שהפדינג לא ינפח אלמנטים */
+    box-sizing: border-box;
 }
 
 .fa, .fas, .far, .fal, .fab, .fa-solid, .fa-regular, .fa-brands {
@@ -25,7 +25,7 @@ body {
     color: var(--text-white);
     display: grid; 
     grid-template-columns: 260px 1fr;
-    grid-template-rows: 1fr 75px; 
+    grid-template-rows: 1fr; /* תוקן כאן: הוסר ה-75px כדי שהגריד לא ישאיר חור שחור */
     height: 100vh;
     overflow: hidden;
 }
@@ -87,7 +87,6 @@ body {
 }
 .v-card img { width: 100%; height: 100%; object-fit: cover; }
 
-/* באדג' זמן - מוודא שהוא תמיד בפינה */
 .duration-badge {
     position: absolute; bottom: 6px; left: 6px;
     background: rgba(0, 0, 0, 0.85); color: white;
@@ -105,7 +104,6 @@ body {
     align-items: center; font-size: 11px; color: var(--text-dim); 
 }
 
-/* כפתור מועדפים והגדרת הלב הירוק */
 .fav-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; transition: 0.2s; }
 .fav-btn:hover { transform: scale(1.2); }
 .fa-solid.fa-heart { color: var(--spotify-green) !important; }
@@ -122,27 +120,43 @@ body {
 #youtubePlayer { width: 100%; flex-grow: 1; background: #000; }
 #yt-iframe { width: 100%; height: 100%; border: none; }
 
-/* --- Player Bar (Bottom) - עם אנימציה חלקה --- */
+/* הוספת עיצוב לכפתור שינוי הגודל */
+.resizer {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 15px;
+    height: 15px;
+    cursor: se-resize;
+    z-index: 10;
+    background: radial-gradient(circle at 100% 100%, var(--spotify-green) 0%, transparent 70%);
+}
+
+/* --- Player Bar (Bottom) - תוקן --- */
 .player-bar {
-    grid-column: span 2; background: #000; 
+    position: fixed; /* הפיכה לרכיב צף כדי שלא יתנגש עם הגריד הראשי */
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: #000; 
     border-top: 1px solid var(--border-color);
     display: flex; align-items: center; padding: 0 25px; height: 75px;
     z-index: 10000; justify-content: space-between;
-    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s, visibility 0.4s;
 }
 
-/* מצב מוסתר (אנימציה כלפי מטה) */
 .player-bar.hidden-player {
-    display: none; /* נשמר עבור JS */
+    visibility: hidden; /* החלפת display: none ל-visibility לאנימציה חלקה */
     transform: translateY(100%);
     opacity: 0;
+    pointer-events: none; /* מניעת לחיצות כשהסרגל מוסתר */
 }
 
-/* מצב מוצג */
 .player-bar.show-player {
-    display: flex !important;
+    visibility: visible;
     transform: translateY(0);
     opacity: 1;
+    pointer-events: auto;
 }
 
 .now-playing { width: 25%; display: flex; flex-direction: column; }
