@@ -186,12 +186,13 @@ async function getTranslation(text) {
 }
 
 // --- רינדור ---
-
-function renderVideoGrid(videos) {
+// הוסף את הפרמטר isAppend עם ערך ברירת מחדל
+function renderVideoGrid(videos, isAppend = false) {
     const grid = document.getElementById('videoGrid');
     if (!grid) return;
 
-    grid.innerHTML = videos.map(v => {
+    const htmlString = videos.map(v => {
+        // ... (שאר התוכן של הפונקציה נשאר בדיוק אותו הדבר, העתק את הקיים) ...
         const videoId = v.id;
         const title = escapeHtml(v.title);
         const channel = escapeHtml(v.channel_title);
@@ -233,7 +234,16 @@ function renderVideoGrid(videos) {
             </div>
         `;
     }).join('');
+
+    // השינוי החשוב:
+    if (isAppend) {
+        grid.insertAdjacentHTML('beforeend', htmlString);
+    } else {
+        grid.innerHTML = htmlString;
+    }
 }
+
+
 
 function preparePlay(encodedData) {
     try {
