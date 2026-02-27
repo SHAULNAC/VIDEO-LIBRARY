@@ -6,6 +6,11 @@ let currentUser = null;
 let userFavorites = [];
 let debounceTimeout = null;
 let isPlaying = false;
+let loadedVideosCount = 0;
+const VIDEOS_PER_PAGE = 20; // כמה סרטונים לטעון בכל פעם
+let isLoadingVideos = false;
+let hasMoreVideos = true;
+let currentSearchQuery = ""; 
 
 const categoryMap = {
     "1": "כללי", "2": "רכבים", "10": "כללי", "15": "חיות מחמד",
@@ -109,26 +114,67 @@ async function logout() {
 
 // --- חיפוש ---
 
-async function fetchVideos(query = "") {
-    const rawQuery = query.trim();
-    if (!rawQuery) {
-        const { data } = await client.from('videos').select('*').order('published_at', { ascending: false });
-        renderVideoGrid(data);
+async function fetchVideos(query = "", isAppend = false) {
+    if (isLoadingVideos) return;
+    
+    // אם זו שאילתה חדשה, נאפס את מצב הטעינה
+    if (!isAppend) {
+        currentSearchQuery = query.trim();
+        loadedVideosCount = 0;
+        hasMoreVideos = true;
+    } else if (!hasMoreVideos) {
+        // אם אין יותר סרטונים לטעון בגלילה, נעצור
         return;
     }
 
-    const cleanQuery = rawQuery.replace(/[^\w\sא-ת]/g, ' ').trim();
-    const { data } = await client.rpc('search_videos_prioritized', { search_term: cleanQuery });
-    renderVideoGrid(data || []);
+    isLoadingVideos = true;
+    
+    // הגדרת טווח הסרטונים לטעינה נוכחית
+    const from = loadedVideosCount;
+    const to = from + VIDEOS_PER_PAGE - 1;
+    let fetchedData = null;
 
-    clearTimeout(debounceTimeout);
-    debounceTimeout = setTimeout(async () => {
-        const translated = await getTranslation(cleanQuery);
-        if (translated && translated.toLowerCase() !== cleanQuery.toLowerCase()) {
-            const { data: transData } = await client.rpc('search_videos_prioritized', { search_term: translated });
-            if (transData) renderVideoGrid(transData, true);
+    if (!currentSearchQuery) {
+        const { data } = await client.from('videos')
+            .select('*')
+            .order('published_at', { ascending: false })
+            .range(from, to);
+        fetchedData = data;
+    } else {
+        const cleanQuery = currentSearchQuery.replace(/[^\w\sא-ת]/g, ' ').trim();
+        const { data } = await client.rpc('search_videos_prioritized', { search_term: cleanQuery })
+            .range(from, to);
+        fetchedData = data || [];
+
+        // טיפול בתרגום (יתבצע רק בחיפוש הראשוני, לא בגלילה)
+        if (!isAppend) {
+            clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(async () => {
+                const translated = await getTranslation(cleanQuery);
+                if (translated && translated.toLowerCase() !== cleanQuery.toLowerCase()) {
+                    const { data: transData } = await client.rpc('search_videos_prioritized', { search_term: translated }).range(0, VIDEOS_PER_PAGE - 1);
+                    if (transData && transData.length > 0) {
+                        renderVideoGrid(transData, true); // נוסיף את התוצאות המתורגמות
+                    }
+                }
+            }, 800);
         }
-    }, 800);
+    }
+
+    if (fetchedData && fetchedData.length > 0) {
+        renderVideoGrid(fetchedData, isAppend);
+        loadedVideosCount += fetchedData.length;
+        
+        // אם קיבלנו פחות סרטונים ממה שביקשנו, סימן שאין יותר סרטונים במסד הנתונים
+        if (fetchedData.length < VIDEOS_PER_PAGE) {
+            hasMoreVideos = false;
+        }
+    } else {
+        if (!isAppend) renderVideoGrid([]);
+        hasMoreVideos = false;
+    }
+
+    isLoadingVideos = false;
 }
 
 async function getTranslation(text) {
@@ -483,7 +529,19 @@ window.onclick = function(event) {
     }
 }
 
-// --- אתחול ---
+// מאזין לאירועי גלילה של אזור התוכן הראשי
+const contentArea = document.querySelector('.content');
+if (contentArea) {
+    contentArea.addEventListener('scroll', () => {
+        // בודק אם הגענו כמעט לתחתית של אזור התוכן (במרחק 200 פיקסלים)
+        if (contentArea.scrollTop + contentArea.clientHeight >= contentArea.scrollHeight - 200) {
+            if (!isLoadingVideos && hasMoreVideos) {
+                // מפעיל את פונקציית הטעינה במצב שרשור (isAppend = true)
+                fetchVideos(currentSearchQuery, true);
+            }
+        }
+    });
+}// --- אתחול ---
 
 document.getElementById('globalSearch').addEventListener('input', (e) => fetchVideos(e.target.value));
 
