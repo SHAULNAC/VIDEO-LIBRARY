@@ -291,27 +291,42 @@ function initDraggable() {
     let offsetX, offsetY;
 
     handle.addEventListener('mousedown', (e) => {
+        // מונע גרירה אם לוחצים על כפתור הסגירה
+        if (e.target.closest('button')) return;
+
         isDragging = true;
-        offsetX = e.clientX - player.offsetLeft;
-        offsetY = e.clientY - player.offsetTop;
-        player.style.transition = 'none';
+        const rect = player.getBoundingClientRect();
+        offsetX = e.clientX - rect.left;
+        offsetY = e.clientY - rect.top;
         
-        // נטרול אירועי עכבר בתוך ה-iframe בזמן גרירה
+        // ממיר את ה-right/bottom למיקומים אבסולוטיים כדי שהגרירה תעבוד מושלם
+        player.style.right = 'auto';
+        player.style.bottom = 'auto';
+        player.style.left = rect.left + 'px';
+        player.style.top = rect.top + 'px';
+        player.style.transition = 'none'; 
+        
         const iframe = document.getElementById('yt-iframe');
         if(iframe) iframe.style.pointerEvents = 'none';
     });
 
     document.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
-        player.style.left = `${e.clientX - offsetX}px`;
-        player.style.top = `${e.clientY - offsetY}px`;
-        player.style.bottom = 'auto'; 
+        
+        let x = e.clientX - offsetX;
+        let y = e.clientY - offsetY;
+        
+        // שומר שהחלון לא ייצא מגבולות המסך
+        x = Math.max(0, Math.min(x, window.innerWidth - player.offsetWidth));
+        y = Math.max(0, Math.min(y, window.innerHeight - player.offsetHeight));
+
+        player.style.left = `${x}px`;
+        player.style.top = `${y}px`;
     });
 
     document.addEventListener('mouseup', () => {
+        if (!isDragging) return;
         isDragging = false;
-        
-        // החזרת אירועי עכבר ל-iframe בסיום הגרירה
         const iframe = document.getElementById('yt-iframe');
         if(iframe) iframe.style.pointerEvents = 'auto';
     });
@@ -324,31 +339,52 @@ function initResizer() {
     
     resizer.addEventListener('mousedown', (e) => {
         e.preventDefault();
-        window.addEventListener('mousemove', resize);
-        window.addEventListener('mouseup', stopResize);
+        e.stopPropagation();
+
+        const startWidth = player.offsetWidth;
+        const startHeight = player.offsetHeight;
+        const startX = e.clientX;
+        const startY = e.clientY;
         
-        // נטרול אירועי עכבר בתוך ה-iframe בזמן שינוי גודל
+        const rect = player.getBoundingClientRect();
+        
+        player.style.right = 'auto';
+        player.style.bottom = 'auto';
+        player.style.top = rect.top + 'px';
+        player.style.left = rect.left + 'px';
+        player.style.transition = 'none';
+
         const iframe = document.getElementById('yt-iframe');
         if(iframe) iframe.style.pointerEvents = 'none';
+
+        function doResize(re) {
+            // חישוב מתמטי לפינה השמאלית-תחתונה:
+            const diffX = re.clientX - startX;
+            const diffY = re.clientY - startY;
+
+            // מאחר ומושכים שמאלה, diffX הוא שלילי - לכן מחסרים אותו כדי להגדיל את הרוחב
+            const newWidth = startWidth - diffX; 
+            const newHeight = startHeight + diffY;
+
+            if(newWidth > 280) { // רוחב מינימלי
+                player.style.width = newWidth + 'px';
+                player.style.left = (rect.left + diffX) + 'px'; 
+            }
+            if(newHeight > 180) { // גובה מינימלי
+                player.style.height = newHeight + 'px';
+            }
+        }
+
+        function stopResize() {
+            window.removeEventListener('mousemove', doResize);
+            window.removeEventListener('mouseup', stopResize);
+            if(iframe) iframe.style.pointerEvents = 'auto';
+        }
+
+        window.addEventListener('mousemove', doResize);
+        window.addEventListener('mouseup', stopResize);
     });
-
-    function resize(e) {
-        const newWidth = e.clientX - player.offsetLeft;
-        const newHeight = e.clientY - player.offsetTop;
-        if (newWidth > 200) player.style.width = newWidth + 'px';
-        if (newHeight > 150) player.style.height = newHeight + 'px';
-    }
-
-    function stopResize() {
-        window.removeEventListener('mousemove', resize);
-        window.removeEventListener('mouseup', stopResize);
-        
-        // החזרת אירועי עכבר ל-iframe בסיום
-        const iframe = document.getElementById('yt-iframe');
-        if(iframe) iframe.style.pointerEvents = 'auto';
-    }
 }
-
 function togglePlayPause() {
     const iframe = document.getElementById('yt-iframe');
     if (!iframe) return;
