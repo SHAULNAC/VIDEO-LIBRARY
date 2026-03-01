@@ -232,13 +232,13 @@ body {
     align-items: center;
     padding: 15px 10px;
     margin-bottom: 5px;
-    background: var(--dark-grey);
+    background: var(--black);
     border-radius: 8px;
 }
 
 .brand-icon {
-    width: 65px; /* גודל האייקון הגדול */
-    height: 65px;
+    width: 80px; /* גודל האייקון הגדול */
+    height: 80px;
     object-fit: contain;
     margin-bottom: 8px;
     filter: drop-shadow(0 0 5px rgba(29, 185, 84, 0.3)); /* זוהר עדין בצבע ספוטיפיי */
