@@ -229,27 +229,30 @@ body {
 .sidebar-brand {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    padding: 15px 10px;
+    align-items: center; /* ממרכז את האייקון והטקסט אופקית */
+    justify-content: center; /* ממרכז אנכית בתוך הקופסה */
+    padding: 20px 10px;
     margin-bottom: 5px;
-    background: var(--black);
+    background: #000000; /* שחור מוחלט */
     border-radius: 8px;
 }
 
 .brand-icon {
-    width: 80px; /* גודל האייקון הגדול */
+    width: 80px; 
     height: 80px;
     object-fit: contain;
-    margin-bottom: 8px;
-    filter: drop-shadow(0 0 5px rgba(29, 185, 84, 0.3)); /* זוהר עדין בצבע ספוטיפיי */
+    margin-bottom: 12px; /* רווח קצת יותר גדול בין האייקון לטקסט */
+    filter: drop-shadow(0 0 10px rgba(29, 185, 84, 0.4)); /* זוהר מעט יותר בולט כמו בתמונה */
 }
 
 .brand-title {
-    font-size: 8px;
+    font-size: 9px; /* גודל קטן ועדין */
     text-transform: uppercase;
-    letter-spacing: 1.2px;
-    color: var(--spotify-green); /* צבע ירוק מהמשתנים שלך */
-    font-weight: bold;
+    letter-spacing: 1.5px; /* ריווח אותיות למראה יוקרתי */
+    color: var(--spotify-green); 
+    font-weight: 400; /* ביטול ההדגשה (Normal) */
+    text-align: center; /* מוודא שהטקסט ממורכז */
+    opacity: 0.9; /* נותן מראה מעט פחות "צועק" */
 }
 
 /* התאמת תמונת הפרופיל שתהיה מתחת */
