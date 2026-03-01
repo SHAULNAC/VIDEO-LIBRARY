@@ -228,33 +228,32 @@ body {
 /* --- Sidebar Header (Icon & Title) --- */
 .sidebar-brand {
     display: flex;
-    flex-direction: column;
-    align-items: center; /* ממרכז את האייקון והטקסט אופקית */
-    justify-content: center; /* ממרכז אנכית בתוך הקופסה */
-    padding: 20px 10px;
-    margin-bottom: 5px;
-    background: #000000; /* שחור מוחלט */
-    border-radius: 8px;
+    flex-direction: column; /* מסדר אותם אחד מתחת לשני */
+    align-items: center;    /* ממרכז אופקית */
+    justify-content: center; /* ממרכז אנכית */
+    padding: 30px 10px;      /* מרווח פנימי שנותן אוויר */
+    background: #000000 !important; /* שחור מוחלט */
+    border-radius: 12px;
+    margin-bottom: 15px;
 }
 
 .brand-icon {
-    width: 80px; 
-    height: 80px;
-    object-fit: contain;
-    margin-bottom: 12px; /* רווח קצת יותר גדול בין האייקון לטקסט */
-    filter: drop-shadow(0 0 10px rgba(29, 185, 84, 0.4)); /* זוהר מעט יותר בולט כמו בתמונה */
+    width: 90px;  /* הגדלתי מעט שיהיה נוכח */
+    height: auto;
+    margin-bottom: 15px;
+    filter: drop-shadow(0 0 12px rgba(29, 185, 84, 0.5)); /* הילה ירוקה כמו בתמונה */
 }
 
 .brand-title {
-    font-size: 9px; /* גודל קטן ועדין */
+    font-size: 10px;
+    color: var(--spotify-green);
     text-transform: uppercase;
-    letter-spacing: 1.5px; /* ריווח אותיות למראה יוקרתי */
-    color: var(--spotify-green); 
-    font-weight: 400; /* ביטול ההדגשה (Normal) */
-    text-align: center; /* מוודא שהטקסט ממורכז */
-    opacity: 0.9; /* נותן מראה מעט פחות "צועק" */
+    letter-spacing: 2px;
+    font-weight: 400; /* לא מודגש */
+    text-align: center; /* חשוב מאוד למרכוז הטקסט */
+    max-width: 100%;    /* מונע מהטקסט לחרוג */
+    line-height: 1.4;
 }
-
 /* התאמת תמונת הפרופיל שתהיה מתחת */
 .user-profile-section {
     display: flex;
