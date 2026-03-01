@@ -227,32 +227,33 @@ body {
 }
 /* --- Sidebar Header (Icon & Title) --- */
 .sidebar-brand {
-    display: flex;
-    flex-direction: column; /* מסדר אותם אחד מתחת לשני */
-    align-items: center;    /* ממרכז אופקית */
-    justify-content: center; /* ממרכז אנכית */
-    padding: 30px 10px;      /* מרווח פנימי שנותן אוויר */
-    background: #000000 !important; /* שחור מוחלט */
-    border-radius: 12px;
-    margin-bottom: 15px;
+    display: flex !important;
+    flex-direction: column !important; /* מבטיח סדר אנכי */
+    align-items: center !important;    /* מרכוז אופקי מלא */
+    padding: 30px 10px;
+    background: #000000 !important;   /* שחור מוחלט */
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .brand-icon {
-    width: 90px;  /* הגדלתי מעט שיהיה נוכח */
+    display: block;
+    width: 80px; 
     height: auto;
-    margin-bottom: 15px;
-    filter: drop-shadow(0 0 12px rgba(29, 185, 84, 0.5)); /* הילה ירוקה כמו בתמונה */
+    margin: 0 auto 15px auto; /* מרכוז האייקון ורווח תחתון */
 }
 
 .brand-title {
+    display: block !important;       /* מכריח ירידת שורה */
+    width: 100%;                     /* תופס את כל הרוחב כדי להתמרכז */
+    text-align: center !important;   /* מרכוז הטקסט */
+    color: var(--spotify-green) !important;
     font-size: 10px;
-    color: var(--spotify-green);
+    font-weight: 400 !important;     /* ביטול הדגשה */
     text-transform: uppercase;
-    letter-spacing: 2px;
-    font-weight: 400; /* לא מודגש */
-    text-align: center; /* חשוב מאוד למרכוז הטקסט */
-    max-width: 100%;    /* מונע מהטקסט לחרוג */
-    line-height: 1.4;
+    letter-spacing: 1.5px;
+    white-space: normal !important;  /* מאפשר לטקסט לרדת שורה אם הוא ארוך */
+    overflow: visible !important;    /* מבטל חיתוך טקסט אם קיים */
 }
 /* התאמת תמונת הפרופיל שתהיה מתחת */
 .user-profile-section {
